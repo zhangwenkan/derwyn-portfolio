@@ -23,4 +23,364 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
+  width: 100dvw;
+  overflow-x: hidden;
+}
+
+@layer base {
+  @font-face {
+    font-family: "zentry";
+    src: url("/fonts/zentry-regular.woff2") format("woff2");
+  }
+}
+
+.special-font {
+  font-family: "Zentry";
+  font-feature-settings: "ss01" on;
+}
+
+/* 自定义animation-delay工具类 */
+@layer utilities {
+  .animation-delay-200 {
+    animation-delay: 0.2s;
+  }
+  .animation-delay-400 {
+    animation-delay: 0.4s;
+  }
+  .animation-delay-600 {
+    animation-delay: 0.6s;
+  }
+  .animation-delay-700 {
+    animation-delay: 0.7s;
+  }
+  .animation-delay-800 {
+    animation-delay: 0.8s;
+  }
+  .animation-delay-1000 {
+    animation-delay: 1s;
+  }
+  .animation-delay-2000 {
+    animation-delay: 2s;
+  }
+  .animation-delay-3000 {
+    animation-delay: 3s;
+  }
+
+  
+  /* 毛玻璃卡片效果增强 */
+  .glass-card {
+    background: rgba(255, 255, 255, 0.08);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: 
+      0 8px 32px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.2);
+    transition: all 0.3s ease;
+  }
+  
+  .glass-card:hover {
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.25);
+    box-shadow: 
+      0 12px 40px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+  }
+
+  /* 技能气泡样式增强 */
+  .tech-bubble {
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(15px);
+    -webkit-backdrop-filter: blur(15px);
+  }
+  
+  .tech-bubble::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    transition: left 0.6s ease;
+  }
+  
+  .tech-bubble:hover::before {
+    left: 100%;
+  }
+  
+  .tech-bubble:hover {
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.25), rgba(255, 255, 255, 0.1));
+    box-shadow: 
+      0 6px 25px rgba(0, 0, 0, 0.3),
+      inset 0 1px 0 rgba(255, 255, 255, 0.4),
+      0 0 30px rgba(255, 255, 255, 0.15);
+    transform: translateY(-2px) scale(1.05);
+  }
+
+  .bg-gradient-custom {
+    background-color: #1f242d;
+    background-image: radial-gradient(
+        closest-side,
+        rgba(0, 255, 255, 0.4),
+        rgba(0, 255, 255, 0)
+      ),
+      radial-gradient(
+        closest-side,
+        rgba(255, 0, 255, 0.45),
+        rgba(255, 0, 255, 0)
+      ),
+      radial-gradient(
+        closest-side,
+        rgba(0, 255, 127, 0.35),
+        rgba(0, 255, 127, 0)
+      ),
+      radial-gradient(
+        closest-side,
+        rgba(255, 20, 147, 0.4),
+        rgba(255, 20, 147, 0)
+      ),
+      radial-gradient(
+        closest-side,
+        rgba(75, 0, 255, 0.45),
+        rgba(75, 0, 255, 0)
+      );
+    background-size: 110vw 110vh, 90vw 90vh, 120vw 120vh,
+      100vw 100vh, 130vw 130vh;
+    background-position: 30% 30%, 70% 20%, 50% 70%,
+      25% 80%, 75% 75%;
+    background-repeat: no-repeat;
+    animation: 10s movement ease-in-out infinite;
+  }
+  .bg-gradient-custom::before {
+    content: "";
+    display: block;
+    position: fixed;
+    width: 100%;
+    /* height: 100%; */
+    top: 0;
+    left: 0;
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+  }
+}
+
+@theme {
+  --animate-slideRight: slideRight 1s ease forwards;
+
+  @keyframes slideRight {
+    0% {
+      transform: translateX(-100px);
+      opacity: 0;
+    }
+
+    100% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  --animate-slideLeft: slideLeft 1s ease forwards;
+
+  @keyframes slideLeft {
+    0% {
+      transform: translateX(100px);
+      opacity: 0;
+    }
+
+    100% {
+      transform: translateX(0);
+      opacity: 1;
+    }
+  }
+
+  --animate-slideTop: slideTop 1s ease forwards;
+
+  @keyframes slideTop {
+    0% {
+      transform: translateY(100px);
+
+      opacity: 0;
+    }
+
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  --animate-slideBottom: slideBottom 1s ease forwards;
+
+  @keyframes slideBottom {
+    0% {
+      transform: translateY(-100px);
+
+      opacity: 0;
+    }
+
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  --animate-zoomIn: zoomIn 1s ease forwards;
+
+  @keyframes zoomIn {
+    0% {
+      transform: scale(0);
+
+      opacity: 0;
+    }
+
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  --animate-floatImage: floatImage 4s ease-in-out infinite;
+
+  @keyframes floatImage {
+    0% {
+      transform: translateY(0);
+    }
+
+    50% {
+      transform: translateY(-24px);
+    }
+
+    100% {
+      transform: translateY(0);
+    }
+  }
+
+  /* 背景动态渐变 */
+  @keyframes movement {
+    0%,
+    100% {
+      background-size: 110vw 110vh, 90vw 90vh, 120vw 120vh,
+        100vw 100vh, 130vw 130vh;
+      background-position: 30% 30%, 70% 20%, 50% 70%,
+        25% 80%, 75% 75%;
+    }
+    6.25% {
+      background-size: 115vw 115vh, 95vw 95vh, 125vw 125vh,
+        105vw 105vh, 135vw 135vh;
+      background-position: 32% 28%, 68% 22%, 48% 68%,
+        27% 78%, 73% 77%;
+    }
+    12.5% {
+      background-size: 130vw 130vh, 110vw 110vh, 140vw 140vh,
+        120vw 120vh, 150vw 150vh;
+      background-position: 40% 15%, 60% 35%, 35% 75%,
+        20% 70%, 80% 80%;
+    }
+    18.75% {
+      background-size: 125vw 125vh, 105vw 105vh, 135vw 135vh,
+        115vw 115vh, 145vw 145vh;
+      background-position: 38% 17%, 62% 33%, 37% 73%,
+        22% 72%, 78% 78%;
+    }
+    25% {
+      background-size: 120vw 120vh, 100vw 100vh, 130vw 130vh,
+        110vw 110vh, 140vw 140vh;
+      background-position: 50% 15%, 45% 45%, 25% 85%,
+        15% 65%, 85% 80%;
+    }
+    31.25% {
+      background-size: 125vw 125vh, 105vw 105vh, 135vw 135vh,
+        115vw 115vh, 145vw 145vh;
+      background-position: 48% 17%, 47% 43%, 27% 83%,
+        17% 67%, 83% 78%;
+    }
+    37.5% {
+      background-size: 135vw 135vh, 115vw 115vh, 145vw 145vh,
+        125vw 125vh, 155vw 155vh;
+      background-position: 45% 20%, 50% 40%, 30% 80%,
+        20% 70%, 80% 75%;
+    }
+    43.75% {
+      background-size: 100vw 100vh, 80vw 80vh, 110vw 110vh,
+        90vw 90vh, 120vw 120vh;
+      background-position: 25% 32%, 75% 28%, 65% 65%,
+        32% 82%, 68% 28%;
+    }
+    50% {
+      background-size: 95vw 95vh, 75vw 75vh, 105vw 105vh,
+        85vw 85vh, 115vw 115vh;
+      background-position: 20% 35%, 80% 20%, 70% 60%,
+        35% 85%, 65% 25%;
+    }
+    56.25% {
+      background-size: 105vw 105vh, 85vw 85vh, 115vw 115vh,
+        95vw 95vh, 125vw 125vh;
+      background-position: 22% 37%, 78% 18%, 68% 62%,
+        33% 87%, 67% 23%;
+    }
+    62.5% {
+      background-size: 140vw 140vh, 120vw 120vh, 150vw 150vh,
+        130vw 130vh, 160vw 160vh;
+      background-position: 60% 75%, 30% 70%, 75% 40%,
+        20% 45%, 80% 50%;
+    }
+    68.75% {
+      background-size: 110vw 110vh, 90vw 90vh, 120vw 120vh,
+        100vw 100vh, 130vw 130vh;
+      background-position: 70% 65%, 40% 80%, 60% 35%,
+        25% 50%, 75% 60%;
+    }
+    75% {
+      background-size: 140vw 140vh, 120vw 120vh, 150vw 150vh,
+        130vw 130vh, 160vw 160vh;
+      background-position: 65% 80%, 25% 75%, 80% 35%,
+        15% 40%, 85% 55%;
+    }
+    81.25% {
+      background-size: 120vw 120vh, 100vw 100vh, 130vw 130vh,
+        110vw 110vh, 140vw 140vh;
+      background-position: 63% 78%, 27% 77%, 78% 37%,
+        17% 42%, 83% 53%;
+    }
+    87.5% {
+      background-size: 80vw 80vh, 60vw 60vh, 90vw 90vh,
+        70vw 70vh, 100vw 100vh;
+      background-position: 75% 40%, 35% 80%, 20% 25%,
+        70% 20%, 25% 70%;
+    }
+    93.75% {
+      background-size: 95vw 95vh, 75vw 75vh, 105vw 105vh,
+        85vw 85vh, 115vw 115vh;
+      background-position: 73% 38%, 37% 82%, 22% 27%,
+        68% 22%, 27% 68%;
+    }  
+  }
+}
+
+/* Vertical Timeline 线条优化 */
+@layer utilities {
+  /* 覆盖react-vertical-timeline-component的默认样式 */
+  .vertical-timeline::before {
+    background: linear-gradient(180deg, 
+      rgba(255, 255, 255, 0.9) 0%,
+      rgba(200, 220, 255, 0.8) 25%,
+      rgba(150, 180, 255, 0.7) 50%,
+      rgba(200, 220, 255, 0.8) 75%,
+      rgba(255, 255, 255, 0.9) 100%
+    ) !important;
+    width: 6px !important;
+    box-shadow: 
+      0 0 20px rgba(255, 255, 255, 0.6),
+      0 0 40px rgba(100, 150, 255, 0.4),
+      inset 2px 0 4px rgba(255, 255, 255, 0.8),
+      inset -2px 0 4px rgba(100, 150, 255, 0.3) !important;
+    border-radius: 3px !important;
+  }
+
 }

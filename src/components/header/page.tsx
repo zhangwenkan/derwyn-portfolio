@@ -1,0 +1,64 @@
+"use client";
+import React, { FC } from "react";
+
+const Header: FC = () => {
+  return (
+    <header className="fixed flex top-0 left-0 w-[100%] py-[20px] px-[10%] bg-[#1f242d] justify-between items-center z-[100]">
+      <a
+        href="#"
+        className="text-[25px] no-underline font-semibold cursor-default  animate-slideRight"
+      >
+        Derwyn&apos;s Portfolio
+      </a>
+      <nav className="flex items-center">
+        <a href="#" className="text-white font-medium active:text-gray-400">
+          EN
+        </a>
+        |
+        <a href="#" className="text-white font-medium">
+          中
+        </a>
+      </nav>
+      <nav className="flex items-center space-x-8">
+        <a
+          href="#"
+          className="font-medium text-[#b7b2a9] opacity-0 animate-slideTop"
+        >
+          Home
+        </a>
+        <a
+          href="#"
+          className="text-white font-medium opacity-0 animate-slideTop animation-delay-200"
+        >
+          Skills
+        </a>
+        <a
+          href="#"
+          className="text-white font-medium opacity-0  animate-slideTop animation-delay-400"
+        >
+          Work
+        </a>
+        <a
+          href="#"
+          className="text-white font-medium opacity-0 animate-slideTop animation-delay-600"
+        >
+          Portfolio
+        </a>
+        <a
+          href="#"
+          className="text-white font-medium opacity-0 animate-slideTop animation-delay-800"
+        >
+          Demo
+        </a>
+        <a
+          href="#"
+          className="text-white font-medium opacity-0 animate-slideTop animation-delay-1000"
+        >
+          Contact
+        </a>
+      </nav>
+    </header>
+  );
+};
+
+export default Header;
