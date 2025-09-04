@@ -1,6 +1,5 @@
 "use client";
 import React, { FC, useEffect, useRef } from "react";
-import "./style.css";
 
 const MouseParticleBackground: FC = () => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -148,7 +147,7 @@ const MouseParticleBackground: FC = () => {
     <canvas
       ref={canvasRef}
       id="mouseParticleCanvas"
-      className="mouse-particle-background"
+      className="absolute top-0 left-0 w-full h-full z-0 pointer-events-auto"
     />
   );
 };
