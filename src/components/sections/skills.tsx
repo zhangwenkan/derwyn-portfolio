@@ -107,7 +107,7 @@ const Skills: FC = () => {
     }
   };
   return (
-    <div className="h-dvh">
+    <div className="h-dvh pointer-events-auto">
       <Suspense fallback={<div>Loading...</div>}>
         <Spline
           ref={splineContainer}

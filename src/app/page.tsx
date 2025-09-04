@@ -7,11 +7,13 @@ import Work from "@/components/sections/work";
 
 const Index: FC = () => {
   return (
-    <div className="bg-[#1f242d] text-white">
-      <Header />
-      <Home />
-      <Skills />
-      <Work />
+    <div>
+      <div className="bg-[#1f242d] text-white w-[100%] min-h-dvh pointer-events-none">
+        <Header />
+        <Home />
+        <Skills />
+        <Work />
+      </div>
     </div>
   );
 };

@@ -159,17 +159,19 @@ body {
     background-repeat: no-repeat;
     animation: 10s movement ease-in-out infinite;
   }
-  .bg-gradient-custom::before {
+  /* .bg-gradient-custom::before {
     content: "";
     display: block;
     position: fixed;
     width: 100%;
-    /* height: 100%; */
+    height: 100%;
     top: 0;
     left: 0;
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
-  }
+    pointer-events: none;
+    z-index: -1;
+  } */
 }
 
 @theme {

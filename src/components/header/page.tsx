@@ -3,7 +3,7 @@ import React, { FC } from "react";
 
 const Header: FC = () => {
   return (
-    <header className="fixed flex top-0 left-0 w-[100%] py-[20px] px-[10%] bg-[#1f242d] justify-between items-center z-[100]">
+    <header className="fixed flex top-0 left-0 w-[100%] py-[20px] px-[10%] bg-[#1f242d] justify-between items-center z-[100] pointer-events-auto">
       <a
         href="#"
         className="text-[25px] no-underline font-semibold cursor-default  animate-slideRight"
@@ -19,7 +19,7 @@ const Header: FC = () => {
           中
         </a>
       </nav>
-      <nav className="flex items-center space-x-8">
+      <nav className="flex items-center space-x-8 special-font">
         <a
           href="#"
           className="font-medium text-[#b7b2a9] opacity-0 animate-slideTop"

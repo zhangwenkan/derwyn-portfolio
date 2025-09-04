@@ -80,7 +80,7 @@ const ExperienceCard: FC<TExperience> = (experience) => {
 };
 const Work: FC = () => {
   return (
-    <div className="h-full bg-gradient-custom">
+    <div className="h-full bg-gradient-custom pointer-events-auto">
       <section>
         {/* <h3 className="text-[32px] text-center">Past works</h3> */}
         <h3 className="text-[32px] text-center">工作经历</h3>
