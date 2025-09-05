@@ -2,6 +2,7 @@
 import React, { FC, useEffect } from "react";
 import ParticleMatrix from "@/components/particleMatrix";
 import Typed from "typed.js";
+import TextParticleBackground from "../textParticle";
 
 const Home: FC = () => {
   useEffect(() => {
@@ -26,13 +27,15 @@ const Home: FC = () => {
           </h3>
         </div>
 
-        <div className="opacity-0 animate-[zoomIn_1s_ease_forwards] animation-delay-1000">
+        {/* <div className="opacity-0 animate-[zoomIn_1s_ease_forwards] animation-delay-1000">
           <img
             src="assets/avatars.jpg"
             alt=""
             className="max-w-[450px] rounded-full shadow-[0_0_20px_#b7b2a9] animate-[floatImage_4s_ease-in-out_infinite] animation-delay-2000"
           />
-        </div>
+        </div> */}
+
+        <TextParticleBackground />
       </section>
     </>
   );
