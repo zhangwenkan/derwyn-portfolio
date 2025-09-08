@@ -147,7 +147,7 @@ const MouseParticleBackground: FC = () => {
     <canvas
       ref={canvasRef}
       id="mouseParticleCanvas"
-      className="absolute top-0 left-0 w-full h-full z-0 pointer-events-auto"
+      className="absolute top-0 left-0 w-full h-full z-0 pointer-events-none"
     />
   );
 };

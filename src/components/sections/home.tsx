@@ -3,6 +3,7 @@ import React, { FC, useEffect } from "react";
 import ParticleMatrix from "@/components/particleMatrix";
 import Typed from "typed.js";
 import TextParticleBackground from "../textParticle";
+import ImageParticles from "../imageParticle";
 
 const Home: FC = () => {
   useEffect(() => {
@@ -35,7 +36,8 @@ const Home: FC = () => {
           />
         </div> */}
 
-        <TextParticleBackground />
+        {/* <TextParticleBackground /> */}
+        <ImageParticles />
       </section>
     </>
   );
