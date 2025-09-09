@@ -82,10 +82,17 @@ const Work: FC = () => {
   return (
     <div className="h-full bg-gradient-custom pointer-events-auto">
       <section>
-        {/* <h3 className="text-[32px] text-center">Past works</h3> */}
-        <h3 className="text-[32px] text-center">工作经历</h3>
-        <div className="h-[1px] w-[500px] mx-auto  bg-white"></div>
-        <div className="flex flex-col">
+        {/* <h3 className="text-[32px] text-center">工作经历</h3> */}
+        <div className="px-[10%]">
+          <p className="sm:text-[18px] text-[14px] text-secondary uppercase tracking-wider">
+            What I have done so far
+          </p>
+          <h2 className="text-white font-black md:text-[60px] sm:text-[50px] xs:text-[40px] text-[30px]">
+            Work Experience.
+          </h2>
+        </div>
+        {/* <div className="h-[1px] w-[500px] mx-auto  bg-white"></div> */}
+        <div className="flex flex-col mt-[30px]">
           <VerticalTimeline className="vertical-timeline pt-[4em]!">
             {experiences.map((item, index) => (
               <ExperienceCard key={index} {...item} />

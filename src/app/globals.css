@@ -39,6 +39,31 @@ body {
   font-feature-settings: "ss01" on;
 }
 
+/* 头部 */
+
+/* 添加logo晃动动画 */
+@keyframes slight-sway {
+  0%, 100% {
+    transform: rotate(-5deg);
+  }
+  50% {
+    transform: rotate(5deg);
+  }
+}
+
+.animate-slight-sway {
+  animation: slight-sway 3s ease-in-out infinite;
+}
+
+
+
+
+.violet-gradient {
+    background: #804dee;
+    background: linear-gradient(-90deg, #804dee, #3c335000);
+    background: -webkit-linear-gradient(-90deg, #804dee 0%, rgba(60, 51, 80, 0) 100%);
+}
+
 /* 自定义animation-delay工具类 */
 @layer utilities {
   .animation-delay-200 {
@@ -385,6 +410,8 @@ body {
     }  
   }
 }
+
+
 
 /* Vertical Timeline 线条优化 */
 @layer utilities {
