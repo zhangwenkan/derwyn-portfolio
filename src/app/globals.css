@@ -113,6 +113,11 @@ body {
     transform: translateY(-2px);
   }
 
+  /* fadeIn动画类 */
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease;
+  }
+
   /* 技能气泡样式增强 */
   .tech-bubble {
     position: relative;
@@ -305,6 +310,18 @@ body {
     }
 
     100% {
+      transform: translateY(0);
+    }
+  }
+
+  /* fadeIn动画 */
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
       transform: translateY(0);
     }
   }

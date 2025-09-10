@@ -7,7 +7,6 @@ import {
 import "react-vertical-timeline-component/style.min.css";
 import { experiences } from "@/data/constants";
 import { TExperience } from "@/types/index";
-const Spline = React.lazy(() => import("@splinetool/react-spline"));
 
 const ExperienceCard: FC<TExperience> = (experience) => {
   return (
@@ -93,6 +92,7 @@ const Work: FC = () => {
         </div>
         {/* <div className="h-[1px] w-[500px] mx-auto  bg-white"></div> */}
         <div className="flex flex-col mt-[30px]">
+          <div className="absolute w-[100%] h-[100%]"></div>
           <VerticalTimeline className="vertical-timeline pt-[4em]!">
             {experiences.map((item, index) => (
               <ExperienceCard key={index} {...item} />

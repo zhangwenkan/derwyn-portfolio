@@ -3,7 +3,7 @@ import React, { FC } from "react";
 
 const Header: FC = () => {
   return (
-    <header className="fixed flex top-0 left-0 w-[100%] py-[20px] px-[10%] bg-[#1f242d] justify-between items-center z-[100] pointer-events-auto">
+    <header className="fixed flex top-0 left-0 w-[100%] py-[20px] px-[10%] bg-[#1f242dcc] backdrop-blur-[8px] justify-between items-center z-[100] pointer-events-auto">
       {/* <a
         href="#"
         className="text-[25px] no-underline font-semibold cursor-default  animate-slideRight"

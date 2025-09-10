@@ -2,7 +2,7 @@
 import React, { FC, useEffect } from "react";
 import ParticleMatrix from "@/components/particleMatrix";
 import Typed from "typed.js";
-import TextParticleBackground from "../textParticle";
+// import TextParticleBackground from "../textParticle";
 import ImageParticles from "../imageParticle";
 
 const Home: FC = () => {
