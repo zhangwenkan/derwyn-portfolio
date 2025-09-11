@@ -26,6 +26,9 @@ body {
   width: 100dvw;
   overflow-x: hidden;
 }
+body::-webkit-scrollbar {
+    display: none;
+}
 
 @layer base {
   @font-face {
@@ -450,4 +453,14 @@ body {
     border-radius: 3px !important;
   }
 
+}
+._101-background{
+    z-index: 0;
+    position: absolute;
+    inset: 0%;
+    background-image: radial-gradient(80% 93% at 50% 7%, #FF8FDA 68%, #5011FF 80%, rgba(0, 0, 0, 0.00) 99%);
+    background-size: 100% 100%;
+    background-position: center;
+    top: 100px;
+    border-radius: 20px;
 }

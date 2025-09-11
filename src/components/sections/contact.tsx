@@ -159,43 +159,63 @@ const Contact: FC = () => {
   }, []);
 
   return (
-    <div ref={sectionRef} className="w-full py-20 px-4">
-      <div className="max-w-xl rounded-2xl shadow-lg flex flex-col overflow-hidden">
-        {/* Chat Messages */}
-        <div ref={chatMessagesRef} className="flex-1 p-5 flex flex-col gap-4">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex items-end gap-2 ${
-                msg.isUser ? "self-end flex-row-reverse" : "self-start"
-              }`}
-            >
-              {/* 头像 */}
-              <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
-                <img
-                  src={
-                    msg.isUser ? "/assets/user.png" : "/assets/portrait.webp"
-                  }
-                  alt={msg.isUser ? "User" : "Portrait"}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-
-              {/* 消息气泡 */}
+    <div ref={sectionRef} className="relative w-full min-h-dvh py-20 px-4">
+      <div className="_101-background"></div>
+      <div className="absolute top-[100px] h-[450px] left-[-5px] right-[-5px]">
+        <svg
+          width="100%"
+          height="100%"
+          viewBox="0 0 1424 620"
+          preserveAspectRatio="none"
+          fill="none"
+        >
+          <path
+            d="M0.00536893 20.0468C-0.00354 9.00117 8.30225 -5.41386e-05 19.3479 -5.37162e-05C160.924 -4.83021e-05 1041.73 -1.46185e-05 1404.46 -7.4708e-07C1415.51 -3.24674e-07 1424 9.00122 1423.99 20.0469C1423.73 353.185 1410.05 620 712 620C13.9475 620 0.273125 353.185 0.00536893 20.0468Z"
+            fill="#1f242d"
+          ></path>
+        </svg>
+      </div>
+      <div className="absolute flex w-[100px] h-[100px] bg-white rounded-full left-[50%] ml-[-50px] text-black justify-center items-center">
+        Contact
+      </div>
+      <div className="relative flex mt-[150px] z-100">
+        <div className="w-xl rounded-2xl shadow-lg flex-col overflow-hidden glass-card">
+          {/* Chat Messages */}
+          <div ref={chatMessagesRef} className="flex-1 p-5 flex flex-col gap-4">
+            {messages.map((msg) => (
               <div
-                className={`p-3 rounded-2xl relative animate-fadeIn ${
-                  msg.isUser
-                    ? "self-end bg-[#2f2b1e] text-[#f4a443] border border-[#f4a443] rounded-br-none max-w-[100%]"
-                    : "self-start bg-gray-200 text-gray-800 rounded-bl-none max-w-[60%]"
+                key={msg.id}
+                className={`flex items-end gap-2 ${
+                  msg.isUser ? "self-end flex-row-reverse" : "self-start"
                 }`}
               >
-                {msg.text}
-                <div className="text-xs mt-1 opacity-70 text-right">
-                  {msg.timestamp}
+                {/* 头像 */}
+                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+                  <img
+                    src={
+                      msg.isUser ? "/assets/user.png" : "/assets/portrait.webp"
+                    }
+                    alt={msg.isUser ? "User" : "Portrait"}
+                    className="w-full h-full object-cover"
+                  />
+                </div>
+
+                {/* 消息气泡 */}
+                <div
+                  className={`p-3 rounded-2xl relative animate-fadeIn ${
+                    msg.isUser
+                      ? "self-end bg-[#2f2b1e] text-[#f4a443] border border-[#f4a443] rounded-br-none max-w-[100%]"
+                      : "self-start bg-gray-200 text-gray-800 rounded-bl-none max-w-[60%]"
+                  }`}
+                >
+                  {msg.text}
+                  <div className="text-xs mt-1 opacity-70 text-right">
+                    {msg.timestamp}
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
     </div>
