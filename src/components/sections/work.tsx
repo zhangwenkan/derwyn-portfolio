@@ -83,7 +83,7 @@ const Work: FC = () => {
       <section>
         {/* <h3 className="text-[32px] text-center">工作经历</h3> */}
         <div className="px-[10%]">
-          <p className="sm:text-[18px] text-[14px] text-secondary uppercase tracking-wider">
+          <p className="px-[1rem] py-[0.2rem] rounded-sm sm:text-[18px] text-[14px] uppercase tracking-wider bg-[#0000002c]">
             What I have done so far
           </p>
           <h2 className="text-white font-black md:text-[60px] sm:text-[50px] xs:text-[40px] text-[30px]">

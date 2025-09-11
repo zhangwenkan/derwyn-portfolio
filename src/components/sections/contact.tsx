@@ -16,10 +16,12 @@ const Contact: FC = () => {
     questionIndex: number;
     isAsking: boolean;
     isCompleted: boolean;
+    hasStarted: boolean; // 添加这个状态来跟踪对话是否已经开始
   }>({
     questionIndex: 0,
     isAsking: true,
     isCompleted: false,
+    hasStarted: false, // 初始化为false
   });
 
   // 预定义的用户问题
@@ -77,6 +79,8 @@ const Contact: FC = () => {
     // 如果正在播放动画，直接返回
     if (isAnimationPlaying) return;
 
+    // 标记对话已开始
+    conversationStateRef.current.hasStarted = true;
     setIsAnimationPlaying(true);
 
     let { questionIndex, isAsking } = conversationStateRef.current;
@@ -179,7 +183,12 @@ const Contact: FC = () => {
         Contact
       </div>
       <div className="relative flex mt-[150px] z-100">
-        <div className="w-xl rounded-2xl shadow-lg flex-col overflow-hidden glass-card">
+        <div
+          className={`overflow-hidden ${
+            conversationStateRef.current.hasStarted &&
+            "shadow-lg glass-card w-xl rounded-2xl  flex-col "
+          }`}
+        >
           {/* Chat Messages */}
           <div ref={chatMessagesRef} className="flex-1 p-5 flex flex-col gap-4">
             {messages.map((msg) => (

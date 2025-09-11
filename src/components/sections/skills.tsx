@@ -1,8 +1,9 @@
 "use client";
-import React, { FC, Suspense, useEffect, useRef, useState } from "react";
-import { Application, SPEObject, SplineEvent } from "@splinetool/runtime";
+import React, { FC, Suspense, useEffect, useRef, useState, memo } from "react";
+import { Application, SplineEvent } from "@splinetool/runtime";
 import gsap from "gsap";
 import { Skill, SkillNames, SKILLS } from "@/data/constants";
+import FallingText from "../FallingText";
 const Spline = React.lazy(() => import("@splinetool/react-spline"));
 
 const Skills: FC = () => {
@@ -10,6 +11,7 @@ const Skills: FC = () => {
   const [splineApp, setSplineApp] = useState<Application>();
   const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
   const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
   useEffect(() => {
     if (!selectedSkill || !splineApp) return;
     splineApp.setVariable("heading", selectedSkill.label);
@@ -19,6 +21,7 @@ const Skills: FC = () => {
   useEffect(() => {
     handleSplineInteractions();
   }, [splineApp]);
+
   const handleSplineInteractions = () => {
     if (!splineApp) return;
     splineApp.addEventListener("mouseHover", handleMouseHover);
@@ -44,6 +47,7 @@ const Skills: FC = () => {
     if (!splineApp) return;
     revealKeyCaps();
   }, [splineApp]);
+
   const revealKeyCaps = async () => {
     if (!splineApp) return;
     const kbd = splineApp.findObjectByName("keyboard");
@@ -106,19 +110,41 @@ const Skills: FC = () => {
       }
     }
   };
+
+  // 使用useMemo确保FallingText组件的属性不会变化
+  const fallingTextProps = React.useMemo(
+    () => ({
+      text: "CICD PWA SSR Micro-Frontends Webassembly BBF LLM Websocket LowCode",
+      trigger: "scroll" as const,
+      backgroundColor: "transparent",
+      wireframes: false,
+      gravity: 1,
+      fontSize: "1rem",
+      mouseConstraintStiffness: 0.9,
+      enableMouseInteraction: false,
+    }),
+    []
+  );
+
   return (
-    <div className="h-dvh pointer-events-auto">
-      <Suspense fallback={<div>Loading...</div>}>
-        <Spline
-          ref={splineContainer}
-          onLoad={(app: Application) => {
-            setSplineApp(app);
-          }}
-          scene="assets/skills-keyboard.spline"
-        />
-      </Suspense>
+    <div className="relative h-dvh overflow-hidden pointer-events-auto">
+      <div className="absolute w-full px-[10%] bottom-[5px] top-[-100px] z-10 pointer-events-none">
+        <FallingText {...fallingTextProps} />
+      </div>
+      <div className="relative z-0">
+        <Suspense fallback={<div>Loading...</div>}>
+          <Spline
+            ref={splineContainer}
+            onLoad={(app: Application) => {
+              setSplineApp(app);
+            }}
+            scene="assets/skills-keyboard.spline"
+          />
+        </Suspense>
+      </div>
     </div>
   );
 };
 
-export default Skills;
+// 使用memo包装组件以避免不必要的重新渲染
+export default memo(Skills);
