@@ -1,35 +1,29 @@
 "use client";
 import React, { FC, useEffect, useRef } from "react";
-import lottie from "lottie-web";
+import lottie, { AnimationItem } from "lottie-web";
 
 const Header: FC = () => {
   const lottieRef = useRef<HTMLDivElement>(null);
+  const animationRef = useRef<AnimationItem | null>(null);
 
   useEffect(() => {
-    // if (lottieRef.current) {
-    //   fetch("/assets/logo.json")
-    //     .then((response) => response.json())
-    //     .then((animationData) => {
-    //       lottie.loadAnimation({
-    //         container: lottieRef.current!,
-    //         renderer: "svg",
-    //         loop: false,
-    //         autoplay: true,
-    //         animationData,
-    //       });
-    //     })
-    //     .catch((error) => {
-    //       console.error("Error loading Lottie animation:", error);
-    //     });
-    // }
-    if (lottieRef.current) {
-      lottie.loadAnimation({
+    // 确保不会重复加载动画
+    if (lottieRef.current && !animationRef.current) {
+      animationRef.current = lottie.loadAnimation({
         container: lottieRef.current!,
         path: "/assets/logo.json",
         loop: false,
         autoplay: true,
       });
     }
+
+    // 清理函数
+    return () => {
+      if (animationRef.current) {
+        animationRef.current.destroy();
+        animationRef.current = null;
+      }
+    };
   }, []);
 
   return (
@@ -43,7 +37,7 @@ const Header: FC = () => {
       <div className="flex items-center">
         <div
           ref={lottieRef}
-          className="lottie-box w-[50px] h-[50px] mr-[5px] cursor-pointer hover:animate-slight-sway"
+          className="w-[50px] h-[50px] mr-[5px] cursor-pointer hover:animate-slight-sway"
         ></div>
         <img
           src="/assets/logotext.svg"

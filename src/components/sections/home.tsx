@@ -1,20 +1,34 @@
 "use client";
-import React, { FC, useEffect } from "react";
+import React, { FC, useEffect, useRef } from "react";
 import ParticleMatrix from "@/components/particleMatrix";
 import Typed from "typed.js";
 // import TextParticleBackground from "../textParticle";
 import ImageParticles from "../imageParticle";
 
 const Home: FC = () => {
+  const typedRef = useRef<Typed | null>(null);
+  const el = useRef<HTMLSpanElement>(null);
+
   useEffect(() => {
-    const typed = new Typed(".multiple-text", {
-      strings: ["Frontend Developer", "Shutterbug", "Backpacker"],
-      typeSpeed: 100,
-      backSpeed: 100,
-      backDelay: 1000,
-      loop: true,
-    });
+    if (el.current) {
+      typedRef.current = new Typed(el.current, {
+        strings: ["Frontend Developer", "Shutterbug", "Backpacker"],
+        typeSpeed: 100,
+        backSpeed: 100,
+        backDelay: 1000,
+        loop: true,
+      });
+    }
+
+    return () => {
+      // 销毁typed实例以防止内存泄漏
+      if (typedRef.current) {
+        typedRef.current.destroy();
+        typedRef.current = null;
+      }
+    };
   }, []);
+
   return (
     <section className="relative flex w-[100%] h-screen items-center justify-between px-[10%] pt-[70px] pointer-events-auto">
       <ParticleMatrix />
@@ -29,7 +43,7 @@ const Home: FC = () => {
               Hi,This is <span className="text-[#915EFF]">Derwyn</span>
             </h3>
             <h3 className="text-[32px] font-bold opacity-0 animate-slideTop animation-delay-700">
-              And I'm a <span className="text-[#f4a443] multiple-text"></span>
+              And I'm a <span ref={el} className="text-[#f4a443]"></span>
             </h3>
           </div>
         </div>
