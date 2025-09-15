@@ -162,6 +162,34 @@ const Contact: FC = () => {
     };
   }, []);
 
+  // 添加鼠标滚轮事件处理，使iPhone容器内的聊天可以独立滚动
+  useEffect(() => {
+    const chatContainer = chatMessagesRef.current;
+    if (!chatContainer) return;
+
+    // 阻止事件冒泡，让滚动事件在容器内处理
+    const handleWheel = (e: WheelEvent) => {
+      e.stopPropagation();
+
+      // 计算滚动方向和距离
+      const delta = e.deltaY;
+
+      // 手动滚动容器
+      chatContainer.scrollTop += delta;
+
+      // 阻止默认行为以防止外层滚动
+      e.preventDefault();
+    };
+
+    // 添加事件监听器
+    chatContainer.addEventListener("wheel", handleWheel, { passive: false });
+
+    // 清理函数
+    return () => {
+      chatContainer.removeEventListener("wheel", handleWheel);
+    };
+  }, []);
+
   return (
     <div ref={sectionRef} className="relative w-full min-h-dvh py-20 px-4">
       <div className="_101-background"></div>
@@ -182,48 +210,76 @@ const Contact: FC = () => {
       <div className="absolute flex w-[100px] h-[100px] bg-white rounded-full left-[50%] ml-[-50px] text-black justify-center items-center">
         Contact
       </div>
-      <div className="relative flex mt-[150px] z-100">
-        <div
-          className={`overflow-hidden ${
-            conversationStateRef.current.hasStarted &&
-            "shadow-lg glass-card w-xl rounded-2xl  flex-col "
-          }`}
-        >
-          {/* Chat Messages */}
-          <div ref={chatMessagesRef} className="flex-1 p-5 flex flex-col gap-4">
-            {messages.map((msg) => (
+      <div className="relative flex mt-[150px] z-100 justify-center">
+        {/* iPhone手机外壳 */}
+        <div className="relative w-[320px] h-[650px] bg-black rounded-[40px] border-[12px] border-black shadow-2xl">
+          {/* 手机刘海 */}
+          <div className="absolute top-0 left-1/2 transform -translate-x-1/2 w-32 h-6 bg-black rounded-b-2xl z-10"></div>
+
+          {/* 手机屏幕 */}
+          <div className="w-full h-full rounded-[32px] bg-gray-900 overflow-hidden relative">
+            {/* 状态栏 */}
+            <div className="absolute top-2 left-0 right-0 flex justify-center items-center">
+              <div className="text-white text-xs font-medium">9:41</div>
+            </div>
+
+            {/* 毛玻璃对话框容器 */}
+            <div className="absolute inset-0 flex items-center justify-center p-4">
               <div
-                key={msg.id}
-                className={`flex items-end gap-2 ${
-                  msg.isUser ? "self-end flex-row-reverse" : "self-start"
+                className={`w-full h-full ${
+                  conversationStateRef.current.hasStarted &&
+                  "shadow-lg rounded-2xl flex-col"
                 }`}
               >
-                {/* 头像 */}
-                <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
-                  <img
-                    src={
-                      msg.isUser ? "/assets/user.png" : "/assets/portrait.webp"
-                    }
-                    alt={msg.isUser ? "User" : "Portrait"}
-                    className="w-full h-full object-cover"
-                  />
-                </div>
-
-                {/* 消息气泡 */}
+                {/* Chat Messages */}
                 <div
-                  className={`p-3 rounded-2xl relative animate-fadeIn ${
-                    msg.isUser
-                      ? "self-end bg-[#2f2b1e] text-[#f4a443] border border-[#f4a443] rounded-br-none max-w-[100%]"
-                      : "self-start bg-gray-200 text-gray-800 rounded-bl-none max-w-[60%]"
-                  }`}
+                  ref={chatMessagesRef}
+                  className="flex-1 p-4 pt-7 flex flex-col gap-4 overflow-y-auto scrollbar-thin scrollbar-thumb-gray-600 scrollbar-track-transparent"
+                  style={{ maxHeight: "100%", height: "100%" }}
                 >
-                  {msg.text}
-                  <div className="text-xs mt-1 opacity-70 text-right">
-                    {msg.timestamp}
-                  </div>
+                  {messages.map((msg) => (
+                    <div
+                      key={msg.id}
+                      className={`flex items-end gap-2 ${
+                        msg.isUser ? "self-end flex-row-reverse" : "self-start"
+                      }`}
+                    >
+                      {/* 头像 */}
+                      <div className="w-8 h-8 rounded-full overflow-hidden flex-shrink-0">
+                        <img
+                          src={
+                            msg.isUser
+                              ? "/assets/user.png"
+                              : "/assets/portrait.webp"
+                          }
+                          alt={msg.isUser ? "User" : "Portrait"}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+
+                      {/* 消息气泡 */}
+                      <div
+                        className={`p-3 rounded-2xl relative animate-bubbleZoom ${
+                          msg.isUser
+                            ? "self-end bg-[#2f2b1e] text-[#f4a443] border border-[#f4a443] rounded-br-none max-w-[90%]"
+                            : "self-start bg-gray-200 text-gray-800 rounded-bl-none max-w-[90%]"
+                        }`}
+                      >
+                        <div className="whitespace-pre-wrap leading-relaxed text-sm overflow-hidden">
+                          {msg.text}
+                        </div>
+                        <div className="text-xs mt-1 opacity-70 text-right">
+                          {msg.timestamp}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
-            ))}
+            </div>
+
+            {/* 手机底部指示器 */}
+            <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-24 h-1 bg-gray-600 rounded-full"></div>
           </div>
         </div>
       </div>

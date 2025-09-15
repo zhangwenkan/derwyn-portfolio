@@ -50,7 +50,7 @@ const Index: FC = () => {
       </div>
 
       {/* Main Content Container - 只在loading结束后渲染内容 */}
-      <div className="bg-[#1f242d] text-white w-[100%] min-h-dvh pointer-events-none relative">
+      <div className="bg-[#1f242d] text-white w-[100%] min-h-dvh relative">
         {/* 上半部分遮罩 */}
         <div
           className={`fixed top-0 left-0 w-full h-1/2 bg-[#1f242d] z-40 transition-transform duration-700 ease-in-out delay-300 ${

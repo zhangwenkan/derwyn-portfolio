@@ -72,6 +72,25 @@ body {
   overflow-x: hidden;
 }
 
+/* 添加滚动条样式以确保在所有浏览器中都能正常显示 */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.5);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.8);
+}
+
 body::-webkit-scrollbar {
     display: none;
 }
@@ -165,6 +184,26 @@ body::-webkit-scrollbar {
   /* fadeIn动画类 */
   .animate-fadeIn {
     animation: fadeIn 0.3s ease;
+  }
+
+  /* 消息气泡从小到大逐渐显示的动画 */
+  .animate-bubbleZoom {
+    animation: bubbleZoom 0.3s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  }
+
+  @keyframes bubbleZoom {
+    0% {
+      opacity: 0;
+      transform: scale(0);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.2);
+    }
+    100% {
+      opacity: 1;
+      transform: scale(1);
+    }
   }
 
   /* 技能气泡样式增强 */
