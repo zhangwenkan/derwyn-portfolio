@@ -1,6 +1,7 @@
 "use client";
 import React, { FC, useEffect, useRef, useState } from "react";
-
+import ProfileCard from "../ProfileCard";
+import lottie, { AnimationItem } from "lottie-web";
 const Contact: FC = () => {
   const chatMessagesRef = useRef<HTMLDivElement>(null);
   const [messages, setMessages] = useState<
@@ -10,6 +11,28 @@ const Contact: FC = () => {
   const sectionRef = useRef<HTMLDivElement>(null);
   const observerRef = useRef<IntersectionObserver | null>(null);
   const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lottieRef = useRef<HTMLDivElement>(null);
+  const animationRef = useRef<AnimationItem | null>(null);
+
+  useEffect(() => {
+    // 确保不会重复加载动画
+    if (lottieRef.current && !animationRef.current) {
+      animationRef.current = lottie.loadAnimation({
+        container: lottieRef.current!,
+        path: "/assets/playful_cat.json",
+        loop: true,
+        autoplay: true,
+      });
+    }
+
+    // 清理函数
+    return () => {
+      if (animationRef.current) {
+        animationRef.current.destroy();
+        animationRef.current = null;
+      }
+    };
+  }, []);
 
   // 保存对话状态
   const conversationStateRef = useRef<{
@@ -207,10 +230,15 @@ const Contact: FC = () => {
           ></path>
         </svg>
       </div>
-      <div className="absolute flex w-[100px] h-[100px] bg-white rounded-full left-[50%] ml-[-50px] text-black justify-center items-center">
-        Contact
+      <div className="absolute flex w-[260px] h-[260px] left-[50%] top-[-30px] ml-[-100px] text-white justify-center items-center special-font text-[30px]">
+        <div ref={lottieRef} className="mr-[5px]"></div>
+        <img
+          src="/assets/contact.svg"
+          alt="mobile"
+          className="w-[155px] mt-[10px]"
+        />
       </div>
-      <div className="relative flex mt-[150px] z-100 justify-center">
+      <div className="relative flex justify-center items-center gap-[160px] mt-[100px] z-100 ">
         {/* iPhone手机外壳 */}
         <div className="relative w-[320px] h-[650px] bg-black rounded-[40px] border-[12px] border-black shadow-2xl">
           {/* 手机刘海 */}
@@ -282,6 +310,19 @@ const Contact: FC = () => {
             <div className="absolute bottom-2 left-1/2 transform -translate-x-1/2 w-24 h-1 bg-gray-600 rounded-full"></div>
           </div>
         </div>
+        <ProfileCard
+          name="Derwyn"
+          title="Frontend Developer"
+          handle="derwynking"
+          status="Online"
+          contactText="Contact Me"
+          avatarUrl="/assets/portrait.webp"
+          iconUrl="/assets/iconpattern.png"
+          showUserInfo={true}
+          enableTilt={true}
+          enableMobileTilt={false}
+          onContactClick={() => console.log("Contact clicked")}
+        />
       </div>
     </div>
   );
