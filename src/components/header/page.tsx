@@ -34,7 +34,7 @@ const Header: FC = () => {
       >
         Derwyn&apos;s Portfolio
       </a> */}
-      <div className="flex items-center">
+      {/* <div className="flex items-center">
         <div
           ref={lottieRef}
           className="w-[50px] h-[50px] mr-[5px] cursor-pointer hover:animate-slight-sway"
@@ -44,7 +44,12 @@ const Header: FC = () => {
           alt=""
           className="w-[100px] h-[20px] opacity-0 animate-dropAndFocus"
         />
-      </div>
+      </div> */}
+      <img
+        src="/assets/logo.svg"
+        alt=""
+        className="w-[100px] h-[100px] opacity-0 animate-dropAndFocus"
+      />
       <nav className="flex items-center space-x-8 special-font">
         <a
           href="#"
