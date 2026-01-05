@@ -1,10 +1,20 @@
 "use client";
-import React, { FC, useEffect, useRef } from "react";
+import React, { FC, useEffect, useRef, useState } from "react";
+import Image from "next/image";
 import lottie, { AnimationItem } from "lottie-web";
 
 const Header: FC = () => {
   const lottieRef = useRef<HTMLDivElement>(null);
   const animationRef = useRef<AnimationItem | null>(null);
+  const [activeSection, setActiveSection] = useState<string>("home");
+
+  // 导航菜单项配置
+  const navItems = [
+    { id: "home", label: "Home", href: "#home" },
+    { id: "skills", label: "Skills", href: "#skills" },
+    { id: "work", label: "Work", href: "#work" },
+    { id: "contact", label: "Contact", href: "#contact" },
+  ];
 
   useEffect(() => {
     // 确保不会重复加载动画
@@ -26,8 +36,45 @@ const Header: FC = () => {
     };
   }, []);
 
+  // 监听滚动事件，检测当前显示的section
+  useEffect(() => {
+    const handleScroll = () => {
+      const sections = navItems.map((item) => document.getElementById(item.id));
+      const scrollPostion = window.scrollY + 200; //偏移量，让切换更灵敏
+
+      for (let i = sections.length - 1; i >= 0; i--) {
+        const section = sections[i];
+        if (section && section.offsetTop <= scrollPostion) {
+          setActiveSection(navItems[i].id);
+          break;
+        }
+      }
+    };
+
+    // 初始化检测
+    handleScroll();
+
+    // 添加滚动监听
+    window.addEventListener("scroll", handleScroll);
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
+
+  // 平滑滚动到指定section
+  const scrollToSection = (sectionId: string) => {
+    const section = document.getElementById(sectionId);
+    if (section) {
+      section.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      });
+    }
+  };
+
   return (
-    <header className="fixed flex top-0 left-0 w-[100%] px-[10%] bg-[#1f242dcc] backdrop-blur-[8px] justify-between items-center z-[200] pointer-events-auto">
+    <header className="fixed flex top-0 left-0 w-[100%] px-[10%] bg-[#1f242dcc] backdrop-blur-[6px] justify-between items-center z-[200] pointer-events-auto">
       {/* <a
         href="#"
         className="text-[25px] no-underline font-semibold cursor-default  animate-slideRight"
@@ -45,39 +92,44 @@ const Header: FC = () => {
           className="w-[100px] h-[20px] opacity-0 animate-dropAndFocus"
         />
       </div> */}
-      <img
+      <Image
         src="/assets/logo.svg"
-        alt=""
-        className="w-[100px] h-[100px] opacity-0 animate-dropAndFocus"
+        alt="Logo"
+        width={120}
+        height={120}
+        className="opacity-0 animate-dropAndFocus"
+        priority
       />
       <nav className="flex items-center space-x-8 special-font">
+        {navItems.map((item, index) => (
+          <a
+            key={item.id}
+            href={item.href}
+            onClick={(e) => {
+              e.preventDefault();
+              scrollToSection(item.id);
+            }}
+            className={`font-medium text-[1.5rem] transition-colors duration-300 opacity-0 animate-slideTop ${
+              activeSection === item.id
+                ? "text-[#b7b2a9]"
+                : "text-white hover:text-[#b7b2a9]"
+            }`}
+            style={{
+              animationDelay: `${index * 200}ms`,
+            }}
+          >
+            {item.label}
+          </a>
+        ))}
         <a
           href="#"
-          className="font-medium text-[#b7b2a9] opacity-0 animate-slideTop"
-        >
-          Home
-        </a>
-        <a
-          href="#"
-          className="text-white font-medium opacity-0 animate-slideTop animation-delay-200"
-        >
-          Skills
-        </a>
-        <a
-          href="#"
-          className="text-white font-medium opacity-0  animate-slideTop animation-delay-400"
-        >
-          Work
-        </a>
-        <a
-          href="#"
-          className="text-white font-medium opacity-0 animate-slideTop animation-delay-600"
+          className="text-white font-medium text-[1.5rem] opacity-0 animate-slideTop animation-delay-800"
         >
           Demo
         </a>
         <a
           href="#"
-          className="text-white font-medium opacity-0 animate-slideTop animation-delay-800"
+          className="text-white font-medium text-[1.5rem] opacity-0 animate-slideTop animation-delay-1000"
         >
           Footprint
         </a>

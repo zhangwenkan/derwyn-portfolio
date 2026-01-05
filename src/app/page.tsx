@@ -69,10 +69,18 @@ const Index: FC = () => {
         {!loading && (
           <div>
             <Header />
-            <Home />
-            <Skills />
-            <Work />
-            <Contact />
+            <section id="home">
+              <Home />
+            </section>
+            <section id="skills">
+              <Skills />
+            </section>
+            <section id="work">
+              <Work />
+            </section>
+            <section id="contact">
+              <Contact />
+            </section>
           </div>
         )}
       </div>
