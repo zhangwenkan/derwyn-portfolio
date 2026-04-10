@@ -13,6 +13,7 @@ const Header: FC = () => {
     { id: "home", label: "Home", href: "#home" },
     { id: "skills", label: "Skills", href: "#skills" },
     { id: "work", label: "Work", href: "#work" },
+    { id: "footprint", label: "Footprint", href: "#footprint" },
     { id: "contact", label: "Contact", href: "#contact" },
   ];
 
@@ -126,18 +127,6 @@ const Header: FC = () => {
           className="text-white font-medium text-[1.5rem] opacity-0 animate-slideTop animation-delay-800"
         >
           Demo
-        </a>
-        <a
-          href="#"
-          className="text-white font-medium text-[1.5rem] opacity-0 animate-slideTop animation-delay-1000"
-        >
-          Footprint
-        </a>
-        <a
-          href="#"
-          className="text-white font-medium opacity-0 animate-slideTop animation-delay-1000"
-        >
-          Contact
         </a>
       </nav>
       <nav className="flex items-center">

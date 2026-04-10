@@ -4,6 +4,7 @@ import Header from "@/components/header/page";
 import Home from "@/components/sections/home";
 import Skills from "@/components/sections/skills";
 import Work from "@/components/sections/work";
+import Footprint from "@/components/sections/footprint";
 import Contact from "@/components/sections/contact";
 import lottie, { AnimationItem } from "lottie-web";
 
@@ -77,6 +78,9 @@ const Index: FC = () => {
             </section>
             <section id="work">
               <Work />
+            </section>
+            <section id="footprint">
+              <Footprint />
             </section>
             <section id="contact">
               <Contact />
