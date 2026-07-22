@@ -1,0 +1,165 @@
+.page {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: none;
+  background: #0a0a0c;
+}
+
+.stage {
+  position: absolute;
+  inset: 0;
+  pointer-events: auto;
+}
+
+.canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/*
+  Parent Html wrapper sets font-size from pane width.
+  All type here uses em so it stays proportional to the plate.
+*/
+.paneCard {
+  width: 100%;
+  height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 0.55em;
+  padding: 0.9em 1em;
+  color: #ffffff;
+  font-family: Inter, "Helvetica Neue", Arial, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+  letter-spacing: -0.005em;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.eyebrow {
+  font-size: 0.72em;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.headline {
+  margin: 0;
+  font-size: 1.15em;
+  font-weight: 600;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: #ffffff;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.headline a {
+  color: inherit;
+  text-decoration: none;
+  pointer-events: auto;
+}
+
+.blockTitle {
+  margin-bottom: 0.15em;
+  font-size: 0.72em;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.list li + li {
+  margin-top: 0.35em;
+}
+
+.list a {
+  color: rgba(255, 255, 255, 0.78);
+  text-decoration: none;
+  font-size: 0.95em;
+  line-height: 1.3;
+  transition: color 0.15s linear;
+  pointer-events: auto;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+@media (hover: hover) {
+  .list a:hover,
+  .headline a:hover {
+    color: #ffffff;
+  }
+}
+
+.address {
+  font-style: normal;
+  color: rgba(255, 255, 255, 0.85);
+  font-size: 0.95em;
+  line-height: 1.4;
+}
+
+.address p {
+  margin: 0;
+}
+
+.address p + p {
+  margin-top: 0.65em;
+}
+
+.muted {
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.close {
+  position: absolute;
+  top: 2rem;
+  right: 2rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.625rem;
+  margin: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  cursor: pointer;
+  line-height: 0;
+  pointer-events: auto;
+  transition: transform 0.6s cubic-bezier(0.075, 0.82, 0.165, 1);
+}
+
+@media (hover: hover) {
+  .close:hover {
+    transform: rotate3d(0, 0, 1, 90deg);
+  }
+}
+
+.close svg {
+  display: block;
+  width: 14px;
+  height: 14px;
+}
+
+.close rect {
+  fill: currentColor;
+}
+
+@media (max-width: 640px) {
+  .close {
+    top: 1rem;
+    right: 1rem;
+  }
+}

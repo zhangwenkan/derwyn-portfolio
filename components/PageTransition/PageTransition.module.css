@@ -1,0 +1,36 @@
+.loader {
+  position: fixed;
+  inset: 0;
+  height: 100vh;
+  z-index: 999;
+  overflow: hidden;
+  display: none;
+  pointer-events: none;
+}
+
+@supports (height: 100lvh) {
+  .loader {
+    height: 100lvh;
+  }
+}
+
+.backdrop {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.fill {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  transform-origin: bottom center;
+  transform: scaleY(0);
+}
+
+.view {
+  position: relative;
+  min-height: 100%;
+  will-change: transform;
+}
