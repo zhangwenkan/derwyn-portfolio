@@ -1,0 +1,109 @@
+/* Geometry is locked to the source renders (2048x1152) so the layers stay
+   registered with the window cutout at 39.941%/14.931% 19.580%x49.219%. */
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  overflow: hidden;
+  visibility: hidden;
+  pointer-events: none;
+  touch-action: none;
+}
+
+.root[data-playing="true"] {
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.stage {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: max(100vw, 177.778vh);
+  height: max(56.25vw, 100vh);
+  transform: translate(-50%, -50%);
+  background: #e9edf0;
+}
+
+@supports (height: 100lvh) {
+  .stage {
+    width: max(100vw, 177.778lvh);
+    height: max(56.25vw, 100lvh);
+  }
+}
+
+.layer {
+  position: absolute;
+  inset: 0;
+  background-repeat: no-repeat;
+  background-position: center center;
+  background-size: 100% 100%;
+  transform-origin: 49.707% 39.497%;
+  backface-visibility: hidden;
+  will-change: transform, opacity, filter;
+}
+
+/* Full frame behind the wall, so the punched-out window shows it directly and
+   the aperture growing past the frame edges is what fills the screen. */
+.far {
+  background-image: url("/assets/welcome/layer-far.webp");
+}
+
+.middle {
+  background-image: url("/assets/welcome/layer-middle.webp");
+}
+
+.front {
+  background-image: url("/assets/welcome/layer-front.webp");
+}
+
+.controls {
+  position: absolute;
+  right: clamp(1rem, 3vw, 2.5rem);
+  bottom: clamp(1rem, 3vw, 2.5rem);
+  display: flex;
+  gap: 0.5rem;
+}
+
+.btn {
+  padding: 0.6rem 1.2rem;
+  border: 1px solid rgba(23, 23, 23, 0.25);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.55);
+  backdrop-filter: blur(6px);
+  color: #171717;
+  font: inherit;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: background 0.25s ease, border-color 0.25s ease;
+}
+
+.btn:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(23, 23, 23, 0.45);
+}
+
+.btn:focus-visible {
+  outline: 2px solid #171717;
+  outline-offset: 3px;
+}
+
+.btnOn {
+  background: #171717;
+  border-color: #171717;
+  color: #fff;
+}
+
+.btnOn:hover {
+  background: #171717;
+  border-color: #171717;
+}
+
+/* Dev-only launcher that lives on the home page, outside the overlay. */
+.replayLauncher {
+  position: fixed;
+  left: clamp(1rem, 3vw, 2.5rem);
+  bottom: clamp(1rem, 3vw, 2.5rem);
+  z-index: 800;
+}
