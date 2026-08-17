@@ -3,7 +3,10 @@
 import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import gsap from "gsap";
+import CustomEase from "gsap/CustomEase";
 import styles from "./WelcomeIntro.module.css";
+
+gsap.registerPlugin(CustomEase);
 
 const LAYERS = [
   "/assets/welcome/layer-far.webp",
@@ -160,8 +163,115 @@ const LOADING_FRAME_COUNT = 20;
 const LOADING_FRAME_W = 496;
 const LOADING_FRAME_H = 361;
 const LOADING_FRAME_DURATION = 1000 / 20;
-const LOADING_WALK_MIN = 5;
-const LOADING_WALK_MAX = 7;
+const LOADING_WALK_MIN = 9;
+const LOADING_WALK_MAX = 10;
+
+const LOADING_LINES = [
+  "Passenger, please refrain from breakdancing in your seat",
+  "Please don't tap the viewport — aliens get shy",
+  "The cart's dodging asteroids — slight space traffic jam",
+  "Sorry, the cart slowed down passing a black hole",
+  "Drinks are undergoing zero-g calibration",
+  "Your space soda is on its way",
+  "Your space snacks are currently en route",
+  "Cabin service delayed — attendant is petting the ship's space cat",
+  "Loading cosmic-grade refreshments. Please stand by",
+  "Loading slow? Try counting stars while you wait",
+];
+
+// Everything in a balloon beat except the hold is fixed, so the walk minus this
+// overhead is the reading budget the drawn lines share out between them.
+const BUBBLE_LEAD = 0.9;
+const BUBBLE_TAIL = 0.8;
+const BUBBLE_IN = 0.34;
+const BUBBLE_OUT = 0.26;
+const BUBBLE_GAP = 0.2;
+
+// Odometer on the cart's front panel. Every column reads the same 0-100 walk
+// progress divided down, which is the gearing a mechanical counter has: the tens
+// advance a tenth as often as the units and the hundreds turn once over the run.
+const METER_COLUMNS = [100, 10, 1];
+
+// What a column shows at a given reading. An upper wheel that has not been reached
+// yet rests on nothing rather than on a 0, so the counter never displays a leading
+// zero it has not earned.
+const meterFace = (value: number, divisor: number) => {
+  const wheel = Math.floor(value / divisor);
+  return wheel === 0 && divisor > 1 ? "" : String(wheel % 10);
+};
+
+// How far the counter may jump at once. Any size in the range, so the readings are
+// arbitrary numbers rather than multiples of one step, which is what stops the
+// meter from reading as a metronome. The jumps always total 100, so this range is
+// also the frequency control: a wider draw means fewer stops over the same walk and
+// a longer look at each one. The floor matters most -- it caps how many stops the
+// draw can possibly produce, and so how little time the narrowest gap can have.
+const METER_JUMP_MIN = 3;
+const METER_JUMP_MAX = 14;
+
+// Hold weight every stop gets before its own jump is added. Not a brake -- the
+// stops are spread over a fixed walk either way -- but the split between the part
+// of each gap that is shared equally and the part a wide jump earns for itself.
+// Lower for more varied pacing, higher for flatter.
+const METER_HOLD = 12;
+
+// A reading is replaced rather than rolled to: on every stop the whole readout is
+// blanked and brought back in, fading up through a short rise and a blur. Rise and
+// blur are in em because the readout is sized off the cart, so its font size moves
+// with the viewport and a px gesture would grow heavier as the sprite shrinks. The
+// rise is kept just inside the space a centred glyph has below it, which is what
+// lets the window go unclipped.
+const METER_POP = 0.5;
+const METER_POP_RISE = "0.3em";
+const METER_POP_BLUR = "0.09em";
+
+// Delay between one column and the next, so the readout arrives as a wave running
+// down from the highest wheel rather than as one flash. Animating only the columns
+// whose glyph changed was the obvious alternative and it reads far worse: the units
+// carry nearly every stop on their own, so the gesture all but disappears, and the
+// stops that do turn several wheels then stand out as the whole number flickering.
+const METER_POP_STAGGER = 0.07;
+
+// Share of a reading's own time the wave may take. This is the full gesture on all
+// but the tightest gaps, and the cap is what keeps a narrow one from having a column
+// still arriving when the next jump replaces it -- since the jumps are drawn at
+// random, the closest pair of stops is not known until they are drawn. Stagger and
+// rise are scaled together by it, which holds the wave's shape steady instead of
+// bunching the columns up against each other. The remainder is the reading standing
+// still, which every stop is guaranteed some of.
+const METER_POP_SHARE = 0.8;
+
+// Overshoots a few percent, so a digit settles instead of easing to a dead stop.
+// Kept slight: over a rise this short, a springier curve reads as a twitch.
+const METER_POP_EASE = CustomEase.create(
+  "meterPop",
+  "M0,0 C0.34,1.45 0.64,1 1,1",
+);
+
+// Stops from 0 to exactly 100, each with the share of the walk it is reached at.
+const meterStops = () => {
+  const jumps: number[] = [];
+  for (let sum = 0; sum < 100; ) {
+    const jump = Math.min(
+      gsap.utils.random(METER_JUMP_MIN, METER_JUMP_MAX, 1),
+      100 - sum,
+    );
+    sum += jump;
+    jumps.push(jump);
+  }
+  // Jumps always total 100, so the weights total this whatever the draw was.
+  // Normalising them into shares is what lands the last stop exactly as the walker
+  // arrives, and it means the pauses stay proportioned to each other rather than
+  // to any absolute clock.
+  const total = jumps.length * METER_HOLD + 100;
+  let value = 0;
+  let held = 0;
+  return jumps.map((jump) => {
+    value += jump;
+    held += METER_HOLD + jump;
+    return { value, at: held / total };
+  });
+};
 
 const loadImages = (sources: string[]) =>
   Promise.all(
@@ -205,11 +315,15 @@ export default function WelcomeIntro() {
   const dogGLRef = useRef<ReturnType<typeof createDogCompositor>>(null);
   const dogCancelRef = useRef<(() => void) | null>(null);
   const loaderRef = useRef<HTMLCanvasElement>(null);
+  const walkerRef = useRef<HTMLDivElement>(null);
+  const bubbleRef = useRef<HTMLParagraphElement>(null);
+  const meterDigitsRef = useRef<(HTMLSpanElement | null)[]>([]);
   const loaderSheetRef = useRef<HTMLImageElement | null>(null);
   const loaderFrameRef = useRef(0);
   const loaderRafRef = useRef<number | null>(null);
   const loaderLastTimeRef = useRef(0);
-  const loaderWalkRef = useRef<gsap.core.Tween | null>(null);
+  const loaderWalkRef = useRef<gsap.core.Timeline | null>(null);
+  const loaderBubbleRef = useRef<gsap.core.Timeline | null>(null);
   const tlRef = useRef<gsap.core.Timeline | null>(null);
   const loopRef = useRef(false);
   const [looping, setLooping] = useState(false);
@@ -274,13 +388,17 @@ export default function WelcomeIntro() {
     }
     loaderWalkRef.current?.kill();
     loaderWalkRef.current = null;
+    loaderBubbleRef.current?.kill();
+    loaderBubbleRef.current = null;
   }, []);
 
   const startLoader = useCallback(() => {
     const canvas = loaderRef.current;
+    const walker = walkerRef.current;
+    const bubble = bubbleRef.current;
     const ctx = canvas?.getContext("2d") ?? null;
     const sheet = loaderSheetRef.current;
-    if (!canvas || !ctx || !sheet) return;
+    if (!canvas || !walker || !bubble || !ctx || !sheet) return;
     loaderFrameRef.current = 0;
     loaderLastTimeRef.current = 0;
     // Blitting exact cell rects out of the sheet, rather than stepping a CSS
@@ -319,16 +437,151 @@ export default function WelcomeIntro() {
     // units so the walker lands the same margin short of the right edge as it
     // starts from the left, at any viewport width. Linear ease keeps the stride
     // reading at a constant pace against the looping frames.
-    gsap.set(canvas, { x: 0 });
-    const rect = canvas.getBoundingClientRect();
+    gsap.set(walker, { x: 0 });
+    const rect = walker.getBoundingClientRect();
     const travel =
       (rootRef.current?.clientWidth ?? rect.right) - rect.width - rect.left * 2;
     loaderWalkRef.current?.kill();
-    loaderWalkRef.current = gsap.to(canvas, {
-      x: Math.max(0, travel),
-      duration: gsap.utils.random(LOADING_WALK_MIN, LOADING_WALK_MAX),
-      ease: "none",
+    const walk = gsap.utils.random(LOADING_WALK_MIN, LOADING_WALK_MAX);
+    // Walk and readout ride one timeline rather than sibling tweens, so however
+    // the walk is seeked, killed or restarted the readout goes with it and 100
+    // still lands on arrival. Between stops the two only track loosely: pauses are
+    // proportioned by hold weight, not by distance.
+    const walkTl = gsap.timeline();
+    walkTl.to(
+      walker,
+      { x: Math.max(0, travel), duration: walk, ease: "none" },
+      0,
+    );
+    const stops = meterStops();
+    // Which columns are still collapsed, carried forward stop by stop. The glyphs
+    // themselves are not tracked -- every column re-enters on every stop -- but a
+    // width only has to be opened the once.
+    const blank = METER_COLUMNS.map((divisor) => meterFace(0, divisor) === "");
+    METER_COLUMNS.forEach((divisor, i) => {
+      const digit = meterDigitsRef.current[i];
+      if (!digit) return;
+      walkTl.set(
+        digit,
+        {
+          textContent: meterFace(0, divisor),
+          y: 0,
+          opacity: 1,
+          filter: "blur(0em)",
+        },
+        0,
+      );
+      // Collapsed, not just blank: a leading wheel that still reads nothing must
+      // not hold a column's worth of space either, or the reading sits off-centre
+      // in the window. Cleared rather than tweened back so the width returns to
+      // the stylesheet's em and survives a resize mid-walk.
+      if (blank[i]) walkTl.set(digit.parentElement, { width: 0 }, 0);
     });
+    stops.forEach((stop, t) => {
+      const at = walk * stop.at;
+      // Flooring inside meterFace is the gearing: a wheel only turns once the one
+      // below it has wrapped, which is what keeps the upper digits on a whole
+      // number instead of half-way between two.
+      const faces = METER_COLUMNS.map((divisor) =>
+        meterFace(stop.value, divisor),
+      );
+      // The wave is only as long as the columns that are actually showing, so a
+      // two-digit reading is not paced as if it had a hundreds wheel to wait for.
+      const live = faces.reduce((n, face) => n + (face === "" ? 0 : 1), 0);
+      const full = (live - 1) * METER_POP_STAGGER + METER_POP;
+      // How much of the gesture fits. The last stop is not followed by another, so
+      // its wave is free to run on past the walk; nothing is going to overwrite it.
+      const next = stops[t + 1];
+      const fit = next
+        ? Math.min(1, (walk * (next.at - stop.at) * METER_POP_SHARE) / full)
+        : 1;
+      let order = 0;
+      faces.forEach((face, i) => {
+        const digit = meterDigitsRef.current[i];
+        if (!digit || face === "") return;
+        // Opened before the wave reaches it, so the digit rises into a window that
+        // is already there rather than pushing one open as it goes.
+        if (blank[i]) {
+          walkTl.set(digit.parentElement, { clearProps: "width" }, at);
+          blank[i] = false;
+        }
+        // The whole reading is swapped and hidden here, at the stop, before any
+        // column starts arriving. That is what makes the stagger safe: what shows
+        // part-way through the wave is part of the new reading -- 1, then 10, then
+        // 100 -- rather than new digits mixed into the old ones, which on a carry
+        // would briefly spell a number the counter never passed through.
+        walkTl.set(
+          digit,
+          {
+            textContent: face,
+            y: METER_POP_RISE,
+            opacity: 0,
+            filter: `blur(${METER_POP_BLUR})`,
+          },
+          at,
+        );
+        walkTl.to(
+          digit,
+          {
+            y: 0,
+            opacity: 1,
+            // 0em, not 0px: GSAP interpolates a filter string by pairing up the
+            // numbers in it and takes the unit from the end value, so a px target
+            // would quietly retune the blur to 0.09px and cancel it out.
+            filter: "blur(0em)",
+            duration: METER_POP * fit,
+            ease: METER_POP_EASE,
+          },
+          at + order * METER_POP_STAGGER * fit,
+        );
+        order += 1;
+      });
+    });
+    loaderWalkRef.current = walkTl;
+
+    // Two or three lines per pass, drawn by shuffling rather than by sampling
+    // one at a time, which is what stops a pass from repeating itself.
+    const lines = gsap.utils
+      .shuffle(LOADING_LINES.slice())
+      .slice(0, gsap.utils.random(2, 3, 1));
+    const chars = lines.reduce((sum, line) => sum + line.length, 0);
+    // Reading budget left once the fixed beats are paid for, split by length:
+    // the longest line is more than twice the shortest, so equal holds would
+    // either rush it or leave the short ones sitting there.
+    const budget =
+      walk -
+      BUBBLE_LEAD -
+      BUBBLE_TAIL -
+      lines.length * (BUBBLE_IN + BUBBLE_OUT) -
+      (lines.length - 1) * BUBBLE_GAP;
+
+    loaderBubbleRef.current?.kill();
+    const bubbleTl = gsap.timeline();
+    // Growing out of the tail root, not the centre, is what makes it read as
+    // spoken rather than as a panel fading up.
+    bubbleTl.set(
+      bubble,
+      { rotation: -2.5, transformOrigin: "13% 100%", scale: 0.15, opacity: 0 },
+      0,
+    );
+    let at = BUBBLE_LEAD;
+    for (const line of lines) {
+      const hold = (budget * line.length) / chars;
+      // Swapped while the balloon is collapsed, so its reflow is never seen.
+      bubbleTl.call(() => void (bubble.textContent = line), undefined, at);
+      bubbleTl.to(
+        bubble,
+        { scale: 1, opacity: 1, duration: BUBBLE_IN, ease: "back.out(2.6)" },
+        at,
+      );
+      bubbleTl.to(
+        bubble,
+        { scale: 0.12, opacity: 0, duration: BUBBLE_OUT, ease: "back.in(2)" },
+        at + BUBBLE_IN + hold,
+      );
+      at += BUBBLE_IN + hold + BUBBLE_OUT + BUBBLE_GAP;
+    }
+    loaderBubbleRef.current = bubbleTl;
   }, []);
 
   const stop = useCallback(() => {
@@ -347,14 +600,14 @@ export default function WelcomeIntro() {
     const far = farRef.current;
     const middle = middleRef.current;
     const front = frontRef.current;
-    const loader = loaderRef.current;
+    const walker = walkerRef.current;
     const video = dogVideoRef.current;
-    if (!root || !stage || !far || !middle || !front || !loader || !video) return;
+    if (!root || !stage || !far || !middle || !front || !walker || !video) return;
 
     tlRef.current?.kill();
     tlRef.current = null;
     gsap.set([far, middle, front], { clearProps: "all" });
-    gsap.set([stage, loader], { opacity: 1 });
+    gsap.set([stage, walker], { opacity: 1 });
     dogGLRef.current?.clear();
     root.dataset.playing = "true";
     document.body.style.overflow = "hidden";
@@ -389,7 +642,7 @@ export default function WelcomeIntro() {
       tlRef.current = tl;
 
       // Explicit zero-position state so each loop pass starts from scratch.
-      tl.set([stage, loader], { opacity: 1 }, 0);
+      tl.set([stage, walker], { opacity: 1 }, 0);
       tl.set([far, middle, front], { opacity: 1, display: "block" }, 0);
       tl.set([middle, front], { scale: 1, filter: "blur(0px)" }, 0);
 
@@ -438,7 +691,7 @@ export default function WelcomeIntro() {
       );
 
       // Fades the stage rather than the root so the controls stay reachable.
-      tl.to([stage, loader], { opacity: 0, ease: "power2.inOut", duration: 0.65 }, 2.9);
+      tl.to([stage, walker], { opacity: 0, ease: "power2.inOut", duration: 0.65 }, 2.9);
     });
   }, [stop, startDog, startLoader]);
 
@@ -496,13 +749,36 @@ export default function WelcomeIntro() {
           playsInline
           aria-hidden="true"
         />
-        <canvas
-          ref={loaderRef}
-          className={styles.loader}
-          width={LOADING_FRAME_W}
-          height={LOADING_FRAME_H}
-          aria-hidden="true"
-        />
+        <div ref={walkerRef} className={styles.walker} aria-hidden="true">
+          <canvas
+            ref={loaderRef}
+            className={styles.loader}
+            width={LOADING_FRAME_W}
+            height={LOADING_FRAME_H}
+          />
+          {/* Sits on the cart's front panel; .meter carries the registration. */}
+          <div className={styles.meter}>
+            <span className={styles.meterFace}>
+              {METER_COLUMNS.map((divisor, i) => (
+                <span key={divisor} className={styles.meterCol}>
+                  {/* GSAP owns the text from here on, so the markup only seeds the
+                      reading the counter starts on. */}
+                  <span
+                    className={styles.meterDigit}
+                    ref={(el) => {
+                      meterDigitsRef.current[i] = el;
+                    }}
+                  >
+                    {meterFace(0, divisor)}
+                  </span>
+                </span>
+              ))}
+              <span className={styles.meterPct}>%</span>
+            </span>
+          </div>
+          {/* Filled from LOADING_LINES as each beat comes up. */}
+          <p ref={bubbleRef} className={styles.bubble} />
+        </div>
         <div className={styles.controls}>
           {DEV ? (
             <>

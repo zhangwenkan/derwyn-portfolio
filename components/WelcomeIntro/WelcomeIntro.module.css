@@ -87,15 +87,169 @@
    edge is off-screen on tall viewports, so anchoring here keeps the walk cycle
    on the actual bottom of the window. Width is half the canvas backing store,
    so the sprite is 2x supersampled and stays sharp on HiDPI displays.
-   Horizontal travel is driven by GSAP, so left is only the starting margin. */
-.loader {
+   Horizontal travel is driven by GSAP, so left is only the starting margin.
+   The bubble rides inside this box, which is what saves it from needing a
+   second tween kept in sync with the walk. */
+.walker {
   position: absolute;
   left: clamp(1rem, 3vw, 2.5rem);
   bottom: clamp(1rem, 4vh, 3rem);
   width: min(250px, 40vw);
-  height: auto;
   pointer-events: none;
   user-select: none;
+  /* Sizing reference for .meter: the cart panel is a fixed share of the sprite,
+     so the readout has to scale with this box and not with the viewport. Only
+     inline-size is contained, not paint, so the bubble still draws outside. */
+  container-type: inline-size;
+}
+
+.loader {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+/* Percentage readout on the cart's front panel. The rect is the panel's own
+   footprint inside the sprite cell -- 194,209 283x95 of 496x361, measured off the
+   sheet -- and it holds to within a pixel across all 20 frames, so nothing has to
+   track it per frame. No visuals here: the box only centres the plaque, which
+   sizes itself off the digits. */
+.meter {
+  position: absolute;
+  left: 39.2%;
+  top: 57.9%;
+  width: 57.1%;
+  height: 26.5%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* 1cqw is 1% of .walker's width; the panel is 19.2cqw tall, so this leaves the
+     plaque about three quarters of it and margin above and below. */
+  font-size: 8.8cqw;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui,
+    sans-serif;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: #fffdf5;
+}
+
+/* Implies the counter window without competing with the cart's own cream frame:
+   a recess darker than the panel, with the same uneven radii as the balloon.
+   Held at the width of the widest reading, so suppressing the leading zeros
+   collapses their columns inside a window that never changes size -- a counter
+   window is cut into the panel, and a box that grew a digit at a time would read
+   as a text field instead. A floor rather than a fixed width, set to clear a
+   0.9em % glyph: the digits are fixed-width columns but the % is whatever font
+   resolves, and it is better for the window to gain a hair on some unforeseen
+   fallback than for a wide glyph to overflow the rounded border. */
+.meterFace {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.7em;
+  padding: 0.08em 0.34em;
+  border: 0.07em solid rgba(255, 253, 245, 0.32);
+  border-radius: 0.34em 0.26em 0.32em 0.28em / 0.28em 0.36em 0.24em 0.34em;
+  background: rgba(9, 16, 30, 0.5);
+}
+
+/* One digit per column, replaced outright when the reading changes rather than
+   rolled past. The box holds the row height and centres the glyph in it, which is
+   what the rise is measured against: the digit starts below its resting line and
+   settles onto it, staying inside the space a centred glyph already has beneath it,
+   so nothing has to be clipped to keep it off the plaque's border. */
+.meterCol {
+  position: relative;
+  display: block;
+  /* No shrinking: the fixed window would otherwise compress the columns and slice
+     the digits sideways, and GSAP collapses a suppressed column by setting this
+     width to 0 outright. */
+  flex: none;
+  width: 0.64em;
+  height: 1.32em;
+  line-height: 1.32em;
+  text-align: center;
+}
+
+/* Inline-block so the rise has a box to move; GSAP owns transform, opacity and
+   filter on it, and the stylesheet sets none of the three. */
+.meterDigit {
+  display: inline-block;
+  will-change: transform, opacity, filter;
+}
+
+.meterPct {
+  flex: none;
+  margin-left: 0.1em;
+  font-size: 0.72em;
+  line-height: 1;
+  opacity: 0.82;
+}
+
+/* Hand-drawn speech balloon. Anchored above the canvas because the sprite's
+   head touches the top edge of its own cell, so there is no room inside. */
+.bubble {
+  position: absolute;
+  left: 15%;
+  bottom: 100%;
+  /* Fixed width, so the lines wrap instead of stretching the balloon past the
+     viewport — the longest one is 64 characters. Anchoring the bottom edge is
+     what lets the height change between lines without moving the tail. */
+  width: 13em;
+  margin: 0 0 5%;
+  padding: 0.55em 0.95em;
+  /* Sampled off the sprite's own outlines, which are navy rather than black.
+     Matching it is what keeps the balloon inside the drawing. */
+  border: 0.16em solid #203050;
+  /* Uneven widths read as pen pressure rather than as a mistake. */
+  border-width: 0.15em 0.17em 0.2em 0.15em;
+  /* Absolute radii, not percentages: on a box this wide percentages resolve to
+     a clean ellipse, and no two corners differing is the whole point. */
+  border-radius: 1.35em 0.95em 1.25em 1.05em / 1.1em 1.4em 0.9em 1.3em;
+  background: #fffdf5;
+  /* drop-shadow rather than box-shadow: box-shadow would trace the radius box
+     and leave the tail unshadowed. */
+  filter: drop-shadow(0.14em 0.2em 0 rgba(32, 48, 80, 0.16));
+  color: #203050;
+  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui,
+    sans-serif;
+  font-size: clamp(0.68rem, 1.05vw, 0.95rem);
+  font-weight: 700;
+  line-height: 1.35;
+  letter-spacing: 0.02em;
+  text-align: center;
+  text-wrap: balance;
+  /* Hidden until the walk cue pops it. GSAP owns every transform on this
+     element, rotation included, so the two cannot fight over the matrix. */
+  opacity: 0;
+}
+
+/* Tail, drawn as two stacked wedges sharing one box: ::before is the ink,
+   ::after is the fill pulled in from its edges to leave an outline. Both boxes
+   start above the balloon's own border, so the fill also erases the segment the
+   tail crosses — that is what opens the mouth instead of stroking across it. */
+.bubble::before,
+.bubble::after {
+  content: "";
+  position: absolute;
+  left: 7%;
+  bottom: -0.72em;
+  width: 1.5em;
+  height: 0.95em;
+}
+
+/* Short and wide enough to keep a white belly: a longer wedge collapses into a
+   needle once the outline takes its share from both edges. The mid points bow
+   each edge outward so the taper is not two straight rules. */
+.bubble::before {
+  background: #203050;
+  clip-path: polygon(30% 0%, 100% 0%, 52% 52%, 6% 100%, 16% 50%);
+}
+
+.bubble::after {
+  background: #fffdf5;
+  clip-path: polygon(26% 0%, 84% 0%, 46% 46%, 17% 70%, 25% 44%);
 }
 
 .controls {
