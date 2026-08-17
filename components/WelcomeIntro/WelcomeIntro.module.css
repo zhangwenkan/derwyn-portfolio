@@ -57,6 +57,47 @@
   background-image: url("/assets/welcome/layer-front.webp");
 }
 
+/* Dog player. The box is the sprite's own footprint as a share of the 16:9
+   stage, so it stays registered with the scene at any viewport, and its aspect
+   matches the clip's colour half so nothing stretches. */
+.dog {
+  position: absolute;
+  left: 1.781%;
+  top: 48.65%;
+  width: 20.209%;
+  height: 36.136%;
+  pointer-events: none;
+  user-select: none;
+}
+
+/* Texture source for .dog. Held in the layout at 1px with zero opacity rather
+   than display:none, because a display:none video is not guaranteed to keep
+   decoding, and the compositor needs a live frame to upload every tick. */
+.dogSource {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Sits on .root, not .stage: the stage is an oversized 16:9 box whose bottom
+   edge is off-screen on tall viewports, so anchoring here keeps the walk cycle
+   on the actual bottom of the window. Width is half the canvas backing store,
+   so the sprite is 2x supersampled and stays sharp on HiDPI displays.
+   Horizontal travel is driven by GSAP, so left is only the starting margin. */
+.loader {
+  position: absolute;
+  left: clamp(1rem, 3vw, 2.5rem);
+  bottom: clamp(1rem, 4vh, 3rem);
+  width: min(250px, 40vw);
+  height: auto;
+  pointer-events: none;
+  user-select: none;
+}
+
 .controls {
   position: absolute;
   right: clamp(1rem, 3vw, 2.5rem);
