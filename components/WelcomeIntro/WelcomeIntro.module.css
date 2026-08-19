@@ -1,3 +1,38 @@
+/* Display face for the overlay's loading counter, and nothing else in the app --
+   the attendant's lines moved to HiMelody below. Served from public/ rather than
+   through next/font
+   because it is a single static weight and the file is already subset to ASCII, so
+   there is no subsetting left to gain. That subset is exactly U+0020..U+007E, which
+   is why the balloon copy has to stay inside printable ASCII: anything outside it
+   falls back mid-sentence to a face of a different weight and width.
+   block, not swap: the counter sits in a fixed window whose columns are sized off
+   this face's advance, so falling back to a system stack and then swapping would
+   reflow all three digits part-way through the count. */
+@font-face {
+  font-family: "Oxanium";
+  src: url("/fonts/Oxanium-ExtraLight-ASCII.woff2") format("woff2");
+  /* The face is ExtraLight and reports usWeightClass 200. Claiming anything
+     heavier here is what would make the browser synthesise a bold on top of a
+     hairline design, which thickens it unevenly and fills in the counters. */
+  font-weight: 200;
+  font-style: normal;
+  font-display: block;
+}
+
+@font-face {
+  /* Hand-drawn face for the attendant's balloon only. Same public/ + single
+     static weight situation as Oxanium above, and the same U+0020..U+007E
+     subset, so the balloon copy keeps the printable-ASCII-only constraint.
+     Subset with fontTools from WorkearFont-Regular.woff2: ASCII glyphs only,
+     hinting dropped (TrueType instructions buy nothing at these sizes and
+     bloat the file), kern/calt/frac kept. */
+  font-family: "Workear";
+  src: url("/fonts/WorkearFont-ASCII.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+}
+
 /* Geometry is locked to the source renders (2048x1152) so the layers stay
    registered with the window cutout at 39.941%/14.931% 19.580%x49.219%. */
 .root {
@@ -51,6 +86,160 @@
 
 .middle {
   background-image: url("/assets/welcome/layer-middle.webp");
+}
+
+/* Three indicator lenses under the starboard vent. Their box is registered to
+   the 2048x1152 source plate, and lives inside .middle so the lenses inherit the
+   wall's GSAP push-in rather than drifting over the artwork. Container units keep
+   every bevel and shadow proportional when the 16:9 stage is cover-scaled. */
+.statusLights {
+  position: absolute;
+  left: 84.6%;
+  top: 37.8%;
+  width: 6.5%;
+  height: 1.82%;
+  /* The vent grille above the lamps sits at a slight diagonal in the artwork,
+     so the row tilts with it rather than sitting parallel to the frame. One
+     variable, because the exact angle is an eyeball match against the plate. */
+  --lamp-tilt: -5deg;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  container-type: inline-size;
+  transform: rotate(var(--lamp-tilt));
+  pointer-events: none;
+  isolation: isolate;
+}
+
+/* The lamps follow the scene's flat line-art cartoon: matte toon shading, not
+   glass. No specular hot spot, no glint, no rim light -- form comes from a rim
+   darkening plus a soft lower shade, and the only thing a lit lamp earns is a
+   diffuse halo. All three lamps rest on the same dark grey body, the shade of
+   the cabin's unlit fixtures; the lit colours -- light grey, red, green -- are
+   overlays (.lens) fading in over the dark, so the relay stays one property:
+   opacity, and a half-lit lamp reads as glowing up out of the dark. */
+.statusLight {
+  position: relative;
+  box-sizing: border-box;
+  flex: 0 0 16%;
+  aspect-ratio: 1;
+  /* Navy outline at the sprite's own line-work hue (#203050), so the lamps sit
+     inside the drawing rather than on top of it. */
+  border: 0.65cqw solid rgba(35, 49, 78, 0.5);
+  border-radius: 50%;
+  /* Centred, not offset toward a light source: an off-centre ramp with a pale
+     first stop is what reads as a specular hit. Flat through the middle with the
+     falloff confined to the rim is matte form shading. */
+  background: radial-gradient(
+    circle at 50% 46%,
+    #606872 0 58%,
+    #515963 80%,
+    #424952 100%
+  );
+  /* Depth stays matte: on a dark body the crown light is barely a lift (no hot
+     spot), the crescent shade at the foot is deeper than the body, and the
+     socket ring keeps its seat in the bezel. */
+  box-shadow:
+    inset 0 1.1cqw 1.9cqw rgba(255, 255, 255, 0.1),
+    inset 0 -1.3cqw 2.1cqw rgba(18, 22, 28, 0.36),
+    inset 0 0 0 0.6cqw rgba(35, 49, 78, 0.28),
+    0 0.9cqw 1.4cqw rgba(35, 49, 78, 0.2);
+}
+
+/* Lit colour overlays: the same centred matte ramp, hue-shifted only, plus one
+   soft diffuse halo -- the lit state of a toon lamp, not a lit bulb. */
+.lens {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  /* Unlit until its animation says otherwise. */
+  opacity: 0;
+}
+
+.lensRed {
+  background: radial-gradient(
+    circle at 50% 46%,
+    #d96a58 0 58%,
+    #c34a38 80%,
+    #a63526 100%
+  );
+  box-shadow:
+    inset 0 -1cqw 1.8cqw rgba(122, 32, 20, 0.3),
+    0 0 1.8cqw rgba(211, 92, 74, 0.42);
+}
+
+.lensGreen {
+  background: radial-gradient(
+    circle at 50% 46%,
+    #96c46a 0 58%,
+    #78a947 80%,
+    #5d8733 100%
+  );
+  box-shadow:
+    inset 0 -1cqw 1.8cqw rgba(58, 82, 30, 0.3),
+    0 0 1.8cqw rgba(126, 178, 78, 0.42);
+}
+
+/* The left lamp lights up light grey -- the standby beat that opens the cycle.
+   Against the dark body the light grey reads as lit, so it earns the same faint
+   treatment as the colours: a neutral halo, softer than red's or green's since
+   grey light is the dimmest thing the row does. */
+.lensGrey {
+  background: radial-gradient(
+    circle at 50% 46%,
+    #b5bdc6 0 58%,
+    #9fa8b2 80%,
+    #87919c 100%
+  );
+  box-shadow:
+    inset 0 -1cqw 1.8cqw rgba(69, 77, 87, 0.3),
+    0 0 1.8cqw rgba(181, 189, 198, 0.24);
+}
+
+/* The relay: light travels left to right, one lamp handing off to the next.
+   ONE schedule for all three, offset by a third of the cycle each, so grey ->
+   red -> green -> back to grey are the same gesture and the loop point is
+   indistinguishable from the other two hand-offs.
+     Cycle 5.4s, one lamp per 1.8s step:
+       0.00 - 0.85s   coming up, sine in-out
+       0.85 - 2.28s   lit, and steady -- no pulsing while it holds
+       2.28 - 2.83s   going out, 0.55s: quicker than the rise, still not abrupt
+     The next lamp starts at 1.8s and the outgoing one only begins to let go at
+     2.28s, once the arriving colour is about two thirds up. That leaves the two
+     ramps overlapping for a full second, which is what makes the row read as
+     light sliding along it rather than three lamps taking turns. Both ends are
+     long and eased for the same reason: any ramp short enough to notice as an
+     edge reads as a blink, and a blink stops the flow dead. */
+.lensRed,
+.lensGreen,
+.lensGrey {
+  animation: lampRelay 5.4s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+.beatGrey {
+  animation-delay: 0s;
+}
+
+.beatRed {
+  animation-delay: 1.8s;
+}
+
+.beatGreen {
+  animation-delay: 3.6s;
+}
+
+@keyframes lampRelay {
+  0% {
+    opacity: 0;
+  }
+  15.741%,
+  42.222% {
+    opacity: 1;
+  }
+  52.407%,
+  100% {
+    opacity: 0;
+  }
 }
 
 .front {
@@ -126,32 +315,118 @@
   /* 1cqw is 1% of .walker's width; the panel is 19.2cqw tall, so this leaves the
      plaque about three quarters of it and margin above and below. */
   font-size: 8.8cqw;
-  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui,
-    sans-serif;
-  font-weight: 700;
+  font-family: "Oxanium", "PingFang SC", system-ui, sans-serif;
+  /* Matches the face's own weight class, so nothing is synthesised. */
+  font-weight: 200;
+  /* Redundant for the display face, whose every glyph is one advance wide, but it
+     keeps the fallback from shifting the columns if the font never arrives. */
   font-variant-numeric: tabular-nums;
   color: #fffdf5;
+  /* Liquid silver, defined once here and clipped to the glyphs of both the digits
+     and the % so they read as one piece of material. Vertical, not angled: every
+     column is its own element with its own background box, so any horizontal
+     component would restart at each column and break the sheen into steps.
+
+     Achromatic -- one cool steel hue throughout, so there is no hue journey left to
+     reverse and none of the cyan-edge/magenta-edge fringing that made the previous
+     foil read as misregistration on a hairline stroke.
+
+     The value does move, and has to: the horizon at 46% and the specular hit right
+     under it are the whole difference between chrome and grey text. A silver that
+     only ramps from light to dark reads as matte anodised. The horizon is the
+     darkest the stroke is allowed to go and still sits far above the near-black
+     plate, so no part of the glyph drops out. */
+  --meter-foil: linear-gradient(
+    180deg,
+    #ffffff 0%,
+    #dce9f9 26%,
+    #93aed0 46%,
+    #ffffff 55%,
+    #cfdcf0 76%,
+    #9cb4d6 100%
+  );
+  /* The band a digit's ink actually occupies, measured off the face: its figures
+     stand 0.703em tall and sit 0.247em below the top of a 1.32em line box. The
+     foil is sized and offset onto exactly that band, so every stop lands on the
+     glyph instead of being cropped to the middle third of the line box. */
+  --meter-ink-h: 0.703em;
+  --meter-ink-top: 0.247em;
 }
 
-/* Implies the counter window without competing with the cart's own cream frame:
-   a recess darker than the panel, with the same uneven radii as the balloon.
+/* A nameplate bolted to the cart's panel rather than a window cut into it: lit
+   from above like everything else in the scene, so the top edge catches the light,
+   the bottom edge falls into shadow and the plate throws a short one of its own
+   onto the panel below. Kept dark despite being metal -- the reading is a hairline
+   foil and needs the contrast -- so it reads as anodised gunmetal.
+
    Held at the width of the widest reading, so suppressing the leading zeros
-   collapses their columns inside a window that never changes size -- a counter
-   window is cut into the panel, and a box that grew a digit at a time would read
-   as a text field instead. A floor rather than a fixed width, set to clear a
-   0.9em % glyph: the digits are fixed-width columns but the % is whatever font
-   resolves, and it is better for the window to gain a hair on some unforeseen
-   fallback than for a wide glyph to overflow the rounded border. */
+   collapses their columns inside a plate that never changes size; one that grew a
+   digit at a time would read as a text field. The floor is set to the natural
+   width of a full three-digit reading, which makes the plate both stable and snug
+   -- the air around the digits is real padding rather than dead space. */
 .meterFace {
   box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
-  min-width: 3.7em;
-  padding: 0.08em 0.34em;
-  border: 0.07em solid rgba(255, 253, 245, 0.32);
+  min-width: 3.4em;
+  /* Oxanium's ascent and descent are asymmetric about its cap band, so a digit's
+     ink sits 0.062em higher in its line box than centre. No line-height can fix
+     that -- half-leading moves the baseline and the ink along with it -- so the
+     correction is folded into the padding, which shifts the whole reading down
+     without changing the plate's size, since the two values still sum the same. */
+  padding: calc(0.08em + 0.062em) 0.42em calc(0.08em - 0.062em);
+  /* Bevel drawn with the border rather than with extra shadows: the top rail
+     faces the light, the bottom faces away, and the sides sit between them. Carried
+     harder than a hairline outline would be -- the rails are most of what reads as
+     machined metal at this size, and they are also what separates the plate from the
+     cart's own navy panel. */
+  border: 0.055em solid rgba(170, 198, 234, 0.38);
+  border-top-color: rgba(240, 248, 255, 0.72);
+  border-bottom-color: rgba(4, 8, 16, 0.7);
+  /* Same uneven radii as the balloon. A plate this small with four identical
+     corners reads as a CSS box dropped on top of a drawing. */
   border-radius: 0.34em 0.26em 0.32em 0.28em / 0.28em 0.36em 0.24em 0.34em;
-  background: rgba(9, 16, 30, 0.5);
+  /* Two layers, both axis-aligned, and no diagonal glint. A 104deg streak on a box
+     this wide and short is only fourteen degrees off vertical, so it ran straight
+     down the middle of the plate -- behind the digits, lifting exactly the field the
+     hairlines needed to be dark. The spectral wash that sat above it is gone for the
+     same reason, plus it fought the silver in the glyphs.
+
+     What is left is what actually reads as machined metal at this size. Across:
+     both ends fall away, so the plate reads as a convex bar rather than a flat
+     rectangle, and it costs nothing behind the centred reading. Down: a bright lit
+     rail under the top border, falling fast into a near-black body, a hard
+     reflection line at 57% where a polished face picks up the edge of the cart panel
+     below it, dark again, then a bright lip under the bottom border. Two brights at
+     the edges with a dark middle is what gives it thickness. */
+  background-image: linear-gradient(
+      90deg,
+      rgba(2, 5, 12, 0.55) 0%,
+      rgba(2, 5, 12, 0) 17%,
+      rgba(2, 5, 12, 0) 83%,
+      rgba(2, 5, 12, 0.55) 100%
+    ),
+    linear-gradient(
+      180deg,
+      #9db0cd 0%,
+      #3c4a66 6%,
+      #131a2a 26%,
+      #0a0f1e 48%,
+      #0a0f1e 56%,
+      #1d2740 58%,
+      #0c1120 72%,
+      #070b16 87%,
+      #36435f 100%
+    );
+  box-shadow:
+    /* Inside the top rail, so the bevel has a thickness to it. */
+    inset 0 0.035em 0.06em rgba(232, 244, 255, 0.3),
+    /* Inside the bottom, the plate's own shadow on its own floor. */ inset 0
+      -0.07em 0.11em rgba(3, 6, 14, 0.7),
+    /* Outside: a lit lip, then the cast shadow that lifts it off the panel. */ 0
+      0.055em 0 rgba(238, 246, 255, 0.14),
+    0 0.15em 0.28em rgba(4, 8, 18, 0.6);
 }
 
 /* One digit per column, replaced outright when the reading changes rather than
@@ -166,16 +441,42 @@
      the digits sideways, and GSAP collapses a suppressed column by setting this
      width to 0 outright. */
   flex: none;
-  width: 0.64em;
+  /* The face's own digit advance. Its figures are tabular -- all ten share this
+     one width -- so a column of exactly this size sits every glyph in the same
+     place and the reading never shifts as the digits change. */
+  width: 0.578em;
   height: 1.32em;
   line-height: 1.32em;
   text-align: center;
+  /* The digit's ground, and it has to live here rather than on the digit itself.
+     text-shadow is not usable: it paints above the element's background, and the
+     silver in a digit *is* that background, clipped to the glyph -- so a dark
+     text-shadow lands on top of the metal and drains it instead of backing it.
+     drop-shadow filters the rendered result, so it sits behind the glyph.
+     It also cannot go on .meterDigit, because GSAP owns that element's filter for
+     the wave and would overwrite it. From here the halo is blurred along with the
+     digit as it rises, which is what keeps it attached during the tween.
+     Halo first: on a hairline stroke over a dark plate, an all-round dark ground is
+     what separates the two. Then a short contact shadow, so the reading sits on the
+     plate rather than floating over it. */
+  filter: drop-shadow(0 0 0.045em rgba(2, 6, 14, 0.9))
+    drop-shadow(0 0.03em 0.03em rgba(2, 6, 14, 0.7));
 }
 
 /* Inline-block so the rise has a box to move; GSAP owns transform, opacity and
-   filter on it, and the stylesheet sets none of the three. */
+   filter on it, and the stylesheet sets none of the three.
+
+   The glyph is a window onto the foil rather than a solid fill, which is also why
+   nothing is shadowed from here -- see .meterCol. */
 .meterDigit {
   display: inline-block;
+  background-image: var(--meter-foil);
+  background-repeat: no-repeat;
+  background-position: 0 var(--meter-ink-top);
+  background-size: 100% var(--meter-ink-h);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
   will-change: transform, opacity, filter;
 }
 
@@ -184,7 +485,23 @@
   margin-left: 0.1em;
   font-size: 0.72em;
   line-height: 1;
-  opacity: 0.82;
+  /* Same foil, but its own ink band: with line-height 1 there is no half-leading,
+     so the cap band starts 0.087em down instead of 0.247em. */
+  background-image: var(--meter-foil);
+  background-repeat: no-repeat;
+  background-position: 0 0.087em;
+  background-size: 100% var(--meter-ink-h);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  /* Same ground as the digits, and for the same reason it cannot be a text-shadow.
+     Safe to set directly here: nothing animates this element's filter. */
+  filter: drop-shadow(0 0 0.045em rgba(2, 6, 14, 0.9))
+    drop-shadow(0 0.03em 0.03em rgba(2, 6, 14, 0.7));
+  /* Subordinate to the reading, but only just: at 0.72em it is already the faintest
+     thing on the plate, and dimming it much further was reading as unfinished rather
+     than as secondary. */
+  opacity: 0.92;
 }
 
 /* Hand-drawn speech balloon. Anchored above the canvas because the sprite's
@@ -193,10 +510,12 @@
   position: absolute;
   left: 15%;
   bottom: 100%;
-  /* Fixed width, so the lines wrap instead of stretching the balloon past the
-     viewport — the longest one is 64 characters. Anchoring the bottom edge is
-     what lets the height change between lines without moving the tail. */
-  width: 13em;
+  /* Shrink-wrapped, so a short line gets equal margins either side instead of a
+     fixed box's dead space on the right; the cap is what makes long lines wrap
+     instead of stretching the balloon past the viewport. Anchoring the bottom
+     edge is what lets the height change between lines without moving the tail. */
+  width: max-content;
+  max-width: min(24em, 70vw);
   margin: 0 0 5%;
   padding: 0.55em 0.95em;
   /* Sampled off the sprite's own outlines, which are navy rather than black.
@@ -211,15 +530,15 @@
   /* drop-shadow rather than box-shadow: box-shadow would trace the radius box
      and leave the tail unshadowed. */
   filter: drop-shadow(0.14em 0.2em 0 rgba(32, 48, 80, 0.16));
-  color: #203050;
-  font-family: "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", system-ui,
-    sans-serif;
-  font-size: clamp(0.68rem, 1.05vw, 0.95rem);
-  font-weight: 700;
+  color: #000;
+  font-family: "Workear", "HiMelody", "Oxanium", "PingFang SC", system-ui, sans-serif;
+  font-size: clamp(0.82rem, 1.18vw, 1.02rem);
+  /* Workear is a single 400-weight face; the browser must not synthesise a
+     bold on top of a hand-drawn design. */
+  font-weight: 400;
   line-height: 1.35;
   letter-spacing: 0.02em;
-  text-align: center;
-  text-wrap: balance;
+  text-align: left;
   /* Hidden until the walk cue pops it. GSAP owns every transform on this
      element, rotation included, so the two cannot fight over the matrix. */
   opacity: 0;
@@ -229,11 +548,13 @@
    ::after is the fill pulled in from its edges to leave an outline. Both boxes
    start above the balloon's own border, so the fill also erases the segment the
    tail crosses — that is what opens the mouth instead of stroking across it. */
+/* Fixed distance, not a percentage: the balloon shrink-wraps to its text now, so
+   a percentage would drag the tail sideways between short and long lines. */
 .bubble::before,
 .bubble::after {
   content: "";
   position: absolute;
-  left: 7%;
+  left: 1em;
   bottom: -0.72em;
   width: 1.5em;
   height: 0.95em;

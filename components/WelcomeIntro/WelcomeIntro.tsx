@@ -166,15 +166,26 @@ const LOADING_FRAME_DURATION = 1000 / 20;
 const LOADING_WALK_MIN = 9;
 const LOADING_WALK_MAX = 10;
 
+// Where the cycle is parked once she arrives. Picked from the existing sheet by
+// eye: frame 15 has both feet flat on the ground with the legs crossed at rest --
+// the natural standing pose -- while frame 19 holds one foot mid-lift. The source
+// renders are not in the repo, so the pose has to come from one of the 20 frames
+// as-is. 15 also sits close to the end of the cycle, keeping the parking jump small.
+const LOADING_REST_FRAME = 15;
+
+// Printable ASCII only. The balloon is set in Oxanium, whose file is subset to
+// U+0020..U+007E, so anything outside that -- an em dash, a curly quote -- falls back
+// mid-sentence to a system face and lands as a stroke several times heavier than the
+// hairline around it. Spaced hyphens where a dash is wanted.
 const LOADING_LINES = [
   "Passenger, please refrain from breakdancing in your seat",
-  "Please don't tap the viewport — aliens get shy",
-  "The cart's dodging asteroids — slight space traffic jam",
+  "Please don't tap the viewport - aliens get shy",
+  "The cart's dodging asteroids - slight space traffic jam",
   "Sorry, the cart slowed down passing a black hole",
   "Drinks are undergoing zero-g calibration",
   "Your space soda is on its way",
   "Your space snacks are currently en route",
-  "Cabin service delayed — attendant is petting the ship's space cat",
+  "Cabin service delayed - attendant is petting the ship's space cat",
   "Loading cosmic-grade refreshments. Please stand by",
   "Loading slow? Try counting stars while you wait",
 ];
@@ -450,7 +461,25 @@ export default function WelcomeIntro() {
     const walkTl = gsap.timeline();
     walkTl.to(
       walker,
-      { x: Math.max(0, travel), duration: walk, ease: "none" },
+      {
+        x: Math.max(0, travel),
+        duration: walk,
+        ease: "none",
+        // The sheet is a walk cycle, so it has to stop when the walking does --
+        // left running it reads as marching in place against the far wall. Parked
+        // on the stance frame rather than on wherever the loop happened to be, and
+        // snapped there rather than played round to it: finishing the cycle first
+        // would keep the legs going for up to another second past the arrival,
+        // which is the thing being fixed.
+        onComplete: () => {
+          if (loaderRafRef.current !== null) {
+            cancelAnimationFrame(loaderRafRef.current);
+            loaderRafRef.current = null;
+          }
+          loaderFrameRef.current = LOADING_REST_FRAME;
+          drawFrame(LOADING_REST_FRAME);
+        },
+      },
       0,
     );
     const stops = meterStops();
@@ -731,7 +760,25 @@ export default function WelcomeIntro() {
       <div ref={rootRef} className={styles.root}>
         <div ref={stageRef} className={styles.stage} aria-hidden="true">
           <div ref={farRef} className={`${styles.layer} ${styles.far}`} />
-          <div ref={middleRef} className={`${styles.layer} ${styles.middle}`} />
+          <div ref={middleRef} className={`${styles.layer} ${styles.middle}`}>
+            <div className={styles.statusLights} aria-hidden="true">
+              <span className={styles.statusLight}>
+                <span
+                  className={`${styles.lens} ${styles.lensGrey} ${styles.beatGrey}`}
+                />
+              </span>
+              <span className={styles.statusLight}>
+                <span
+                  className={`${styles.lens} ${styles.lensRed} ${styles.beatRed}`}
+                />
+              </span>
+              <span className={styles.statusLight}>
+                <span
+                  className={`${styles.lens} ${styles.lensGreen} ${styles.beatGreen}`}
+                />
+              </span>
+            </div>
+          </div>
           <div ref={frontRef} className={`${styles.layer} ${styles.front}`} />
           {/* No width/height here: the compositor sizes the backing store from
               the laid-out box, and a stale attribute would just contradict it. */}
