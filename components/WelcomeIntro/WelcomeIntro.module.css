@@ -242,6 +242,190 @@
   }
 }
 
+/* Cabin monitor on the port wall. Inside .middle for the same reason
+   .statusLights is: it has to ride the wall's push-in rather than drift over the
+   artwork.
+
+   The screen is drawn on the curved wall, so its navy is a genuine trapezoid --
+   through the middle row it runs x135-310 of the 2048 plate, but by the bottom row
+   only x145-295 -- which an axis-aligned box can either cover or stay inside, not
+   both. This is the largest rect that stays inside, measured off the plate: x144-299,
+   y284-431. The previous box was 4px wider and 2px right of it, which put its
+   bottom-right corner over the drawn edge and onto the bezel.
+
+   Not clipped, deliberately. .tvRaster's glow is the light the screen throws onto
+   the bezel, and overflow:hidden here would cut it off at the screen edge. */
+.tv {
+  position: absolute;
+  left: 7.031%;
+  top: 24.653%;
+  width: 7.617%;
+  height: 12.847%;
+  /* 1cqw is 1% of the screen's width, which is what every length below is in:
+     the monitor is a fixed share of a cover-scaled 16:9 stage, so a px anywhere
+     in here would grow heavier as the stage shrinks. */
+  container-type: inline-size;
+  pointer-events: none;
+}
+
+/* The set going dark, one beat ahead of the signal. Needed because the dot strikes
+   at the screen's centre, which is exactly where the drawn plate is brightest: on
+   the planet's lit face a ~5px white dot reads as one more specular highlight
+   instead of as an arriving signal. Blanking first also turns the sequence into a
+   channel change rather than a bloom over wallpaper, which is the truer CRT
+   gesture. Stays up for the rest of the broadcast behind the opaque raster.
+   The outer stop is #253749, the field navy sampled just inside the drawn screen
+   edge, so what arrives is the planet and stars going out rather than a black
+   rectangle: this box is inscribed in a trapezoid screen, so any colour of its own
+   shows as a rim on all four sides. Only the centre goes darker than the field, and
+   that is the part with a planet to cover. */
+.tvVeil {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(42% 42% at 50% 45%, #1b2636 0%, #253749 100%);
+  border-radius: 6%;
+  opacity: 0;
+}
+
+/* The picture, and the only thing that animates the power-on: GSAP takes it from
+   a dot to a line to the full raster on transform alone, so the phosphor field
+   lives here and the content sits in a sibling that never gets scaled with it.
+
+   Ends on #253749, the field navy sampled just inside the drawn screen edge, for the
+   same reason .tvVeil does: this box is the inscribed rect of a trapezoid screen, so
+   an edge that is any lighter -- as it was -- leaves the plate's navy showing round it
+   and the whole broadcast reads as a box floating inside the monitor.
+
+   The 42% sizing is what makes that stop reachable, and it is the half that was
+   actually broken: these are the gradient ellipse's radii, so at the old 118% the
+   nearest edge of the box only reached 0.44/1.18 of the ramp and the last stop was
+   never rendered anywhere. 42% is just under the 0.44 from the centre to the top
+   edge, so every point on the perimeter is at or past 100% and the whole border is
+   flat field navy. What is left of the ramp is a centre hotspot, which is the part
+   that reads as emitting; the captain covers most of it.
+
+   The beam is not lost by this: GSAP runs the dot and the sweep at brightness 5.5
+   washed to near-white, so the gesture is bright against the field and only settles
+   flush with it. */
+.tvRaster {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    42% 42% at 50% 44%,
+    #324a6b 0%,
+    #2b405c 46%,
+    #253749 100%
+  );
+  /* Uniform percentage, and it has to be: GSAP interpolates border-radius by
+     pairing the numbers in it, so the 50% that makes the dot round can only tween
+     into a single-value radius. Per-corner unevenness would be truer to the
+     hand-drawn screen it sits in, but it is unreachable from one number.
+     GSAP owns this, along with transform and filter; the value here is only the
+     resting state for a frame that has not been animated yet. */
+  border-radius: 6%;
+  /* No bloom. It was a blue box-shadow meant to read as the light the screen throws
+     onto its bezel, but the raster is the inscribed rect of a trapezoid screen, so
+     there is a 5-10px margin of drawn plate outside it for the shadow to land on
+     rather than the bezel: it lifted that margin to #2d475f against a #253749 field,
+     which drew a bright ring right around the picture and put back the outline the
+     flush field exists to remove. The centre hotspot is what carries "switched on"
+     now, and the power-on beam gets its bloom from the brightness GSAP runs on the
+     raster instead. */
+  opacity: 0;
+  will-change: transform, filter, opacity;
+}
+
+/* Everything the broadcast actually shows. Separate from the raster so the captain
+   and the caption are never caught in the power-on's non-uniform scale. */
+.tvBody {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  border-radius: 6%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 5cqw 5.5cqw 6cqw;
+  opacity: 0;
+  will-change: opacity;
+}
+
+/* Broadcast bust, keyed by scripts/prepare-captain.mjs. Height-driven: the source
+   crop is a 0.72 portrait, so the screen's width is never the binding constraint
+   and fixing the height is what keeps the caption's room predictable.
+   The glow is the white twill blooming on the phosphor, which is also why there is
+   no drop shadow -- the screen is the light source, so the subject has nothing to
+   cast one onto. */
+.tvCaptain {
+  flex: none;
+  height: 54cqw;
+  width: auto;
+  filter: saturate(0.92) drop-shadow(0 0 1.1cqw rgba(150, 200, 255, 0.32));
+}
+
+/* Left aligned and stretched to the full width rather than shrink-wrapped and
+   centred: a centred line whose text is still arriving slides sideways on every
+   keystroke, which is the one thing a typewriter must not do. */
+.tvCaption {
+  flex: none;
+  align-self: stretch;
+  margin-top: 3.2cqw;
+  font-family: "Oxanium", "PingFang SC", system-ui, sans-serif;
+  font-weight: 200;
+  font-size: 8cqw;
+  line-height: 1.24;
+  letter-spacing: -0.005em;
+  text-align: left;
+  color: #eaf4ff;
+  /* Phosphor bleed, and at this size it is load-bearing rather than decorative:
+     the face is a 200-weight hairline drawn about 10px tall, and the halo is what
+     gives the stroke enough presence on the dark field to be read. */
+  text-shadow: 0 0 0.42em rgba(150, 205, 255, 0.6),
+    0 0 0.12em rgba(214, 236, 255, 0.5);
+}
+
+/* One per line. Empty until GSAP types into it, and an empty block takes no line
+   box, so the second line costs no height until it starts arriving and the first
+   never moves. */
+.tvLine {
+  display: block;
+  white-space: nowrap;
+}
+
+/* Caret, parked after whatever has been typed so far. An ::after rather than an
+   element of its own so it tracks the text for free instead of needing a position
+   kept in sync with the string. Off until GSAP hands it to a line, and the last
+   line keeps it -- a blinking caret on a finished message is what reads as the
+   channel still being live. */
+.tvLine::after {
+  content: "";
+  display: inline-block;
+  width: 0.42em;
+  height: 0.74em;
+  margin-left: 0.12em;
+  vertical-align: -0.06em;
+  background: #cfe6ff;
+  box-shadow: 0 0 0.3em rgba(150, 205, 255, 0.7);
+  opacity: 0;
+}
+
+.tvLine[data-caret="1"]::after {
+  /* steps(1), so it snaps between the two states. A caret that eases is a fade,
+     and a fade does not read as a caret. */
+  animation: tvCaret 1.06s steps(1) infinite;
+}
+
+@keyframes tvCaret {
+  0%,
+  55% {
+    opacity: 1;
+  }
+  55.001%,
+  100% {
+    opacity: 0;
+  }
+}
+
 .front {
   background-image: url("/assets/welcome/layer-front.webp");
 }

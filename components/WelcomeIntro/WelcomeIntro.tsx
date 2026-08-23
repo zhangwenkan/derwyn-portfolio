@@ -284,6 +284,64 @@ const meterStops = () => {
   });
 };
 
+// Captain's broadcast on the port-wall monitor, keyed out of a green screen by
+// scripts/prepare-captain.mjs.
+const TV_CAPTAIN = "/assets/welcome/captain.webp";
+
+// Printable ASCII only, same constraint as the balloon copy: Oxanium is subset to
+// U+0020..U+007E, so a curly apostrophe here would fall back mid-word to a system
+// face several times heavier than the hairline around it.
+const TV_LINES = ["Hey, I'm Captain King.", "Welcome aboard."];
+
+// The plate's own starfield gets this long to be the thing the eye lands on, so
+// the blank has something to take away rather than opening onto nothing.
+const TV_LEAD = 0.7;
+
+// The plate goes dark this long before the dot, and holds there. Short enough to
+// read as the set cutting out, long enough that the eye has registered black by
+// the time the beam lands on it.
+const TV_BLANK = 0.16;
+const TV_BLANK_HOLD = 0.16;
+
+// CRT power-on, in the three beats the gesture actually has: the beam blooms at
+// rest, stretches into a line, then the line opens into the raster. A single scale
+// from zero was the obvious version and it reads as a panel zooming in -- what
+// makes it a screen is that the horizontal arrives well before the vertical.
+const TV_DOT_IN = 0.06;
+const TV_DOT_HOLD = 0.2;
+const TV_SWEEP = 0.18;
+const TV_OPEN = 0.3;
+
+// The dot, as a share of the screen it is a share of. Both axes land near 6px of
+// the source plate, which with the raster's 50% radius is what makes it round
+// rather than a stubby bar.
+const TV_DOT_X = 0.0375;
+const TV_DOT_Y = 0.0405;
+
+// Concentrated beam, washed out to near-white. Saturation has to come down with
+// the brightness: the field is navy, so brightness alone drives it to cyan and
+// never to the white a phosphor dot actually is.
+const TV_HOT = 5.5;
+const TV_HOT_WASH = 0.25;
+// Where the horizontal sweep leaves it -- still lit, since the line is the part of
+// the gesture that has to read from across the cabin.
+const TV_WARM = 3.4;
+const TV_WARM_WASH = 0.45;
+
+// Keystroke interval, drawn per character rather than divided out of a fixed
+// duration: an even cadence reads as a progress bar, and the thing being imitated
+// is a person typing.
+const TV_KEY_MIN = 0.028;
+const TV_KEY_MAX = 0.085;
+
+// What a character costs after its own keystroke. Slowing at a word boundary and
+// stopping at punctuation is most of what separates typing from a reveal.
+const TV_HOLD: Record<string, number> = { " ": 0.05, ",": 0.16, ".": 0.34 };
+
+// Beat between lines, and long enough to read as a new thought rather than as a
+// wrap.
+const TV_LINE_GAP = 0.45;
+
 const loadImages = (sources: string[]) =>
   Promise.all(
     sources.map(
@@ -329,6 +387,12 @@ export default function WelcomeIntro() {
   const walkerRef = useRef<HTMLDivElement>(null);
   const bubbleRef = useRef<HTMLParagraphElement>(null);
   const meterDigitsRef = useRef<(HTMLSpanElement | null)[]>([]);
+  const tvVeilRef = useRef<HTMLDivElement>(null);
+  const tvRasterRef = useRef<HTMLDivElement>(null);
+  const tvBodyRef = useRef<HTMLDivElement>(null);
+  const tvCaptainRef = useRef<HTMLImageElement>(null);
+  const tvLinesRef = useRef<(HTMLSpanElement | null)[]>([]);
+  const tvTlRef = useRef<gsap.core.Timeline | null>(null);
   const loaderSheetRef = useRef<HTMLImageElement | null>(null);
   const loaderFrameRef = useRef(0);
   const loaderRafRef = useRef<number | null>(null);
@@ -613,15 +677,130 @@ export default function WelcomeIntro() {
     loaderBubbleRef.current = bubbleTl;
   }, []);
 
+  const stopBroadcast = useCallback(() => {
+    tvTlRef.current?.kill();
+    tvTlRef.current = null;
+  }, []);
+
+  const startBroadcast = useCallback(() => {
+    const veil = tvVeilRef.current;
+    const raster = tvRasterRef.current;
+    const body = tvBodyRef.current;
+    const captain = tvCaptainRef.current;
+    if (!veil || !raster || !body || !captain) return;
+
+    tvTlRef.current?.kill();
+    const tl = gsap.timeline();
+
+    // Off, and explicitly so at position zero: replay re-enters this with the
+    // screen left wherever the last pass ended.
+    tl.set(
+      raster,
+      {
+        scaleX: TV_DOT_X,
+        scaleY: TV_DOT_Y,
+        borderRadius: "50%",
+        filter: `brightness(${TV_HOT}) saturate(${TV_HOT_WASH})`,
+        opacity: 0,
+      },
+      0,
+    );
+    tl.set(body, { opacity: 0 }, 0);
+    tl.set(captain, { opacity: 0, scale: 1.05 }, 0);
+    tl.set(veil, { opacity: 0 }, 0);
+
+    // The plate cuts to black first. power2.in holds the starfield almost to the
+    // end of the tween and then drops it, which reads as the set losing the picture
+    // rather than as a fade.
+    tl.to(
+      veil,
+      { opacity: 1, duration: TV_BLANK, ease: "power2.in" },
+      TV_LEAD - TV_BLANK - TV_BLANK_HOLD,
+    );
+
+    // The beam strikes rather than fades up, then sits there long enough to be a
+    // dot instead of a stage the sweep passes through.
+    tl.to(raster, { opacity: 1, duration: TV_DOT_IN, ease: "none" }, TV_LEAD);
+
+    const sweep = TV_LEAD + TV_DOT_HOLD;
+    tl.to(raster, { scaleX: 1, duration: TV_SWEEP, ease: "power2.out" }, sweep);
+    tl.to(
+      raster,
+      {
+        filter: `brightness(${TV_WARM}) saturate(${TV_WARM_WASH})`,
+        duration: TV_SWEEP,
+        ease: "none",
+      },
+      sweep,
+    );
+
+    // The line opens into the raster. The radius comes off with it, since a 50%
+    // radius at full scale is an ellipse with the plate's navy showing round it.
+    const open = sweep + TV_SWEEP;
+    tl.to(
+      raster,
+      {
+        scaleY: 1,
+        borderRadius: "6%",
+        duration: TV_OPEN,
+        ease: "power3.out",
+      },
+      open,
+    );
+    // Outlasts the opening: the picture keeps settling for a beat after the raster
+    // has stopped growing, which is what reads as a signal locking on rather than
+    // as a box finishing an animation.
+    tl.to(
+      raster,
+      {
+        filter: "brightness(1) saturate(1)",
+        duration: TV_OPEN * 1.4,
+        ease: "power2.out",
+      },
+      open,
+    );
+
+    tl.to(body, { opacity: 1, duration: 0.3, ease: "none" }, open + TV_OPEN * 0.6);
+    tl.to(
+      captain,
+      { opacity: 1, scale: 1, duration: 0.42, ease: "power2.out" },
+      open + TV_OPEN * 0.9,
+    );
+
+    // Typed, not revealed: every character is its own `set` at its own drawn
+    // offset, so the cadence is uneven the way a person's is and the whole thing
+    // still seeks and restarts with the timeline.
+    let at = open + TV_OPEN + 0.5;
+    TV_LINES.forEach((line, i) => {
+      const el = tvLinesRef.current[i];
+      if (!el) return;
+      tl.set(el, { textContent: "", attr: { "data-caret": "0" } }, 0);
+      tl.set(el, { attr: { "data-caret": "1" } }, at);
+      for (let n = 1; n <= line.length; n++) {
+        at += gsap.utils.random(TV_KEY_MIN, TV_KEY_MAX);
+        tl.set(el, { textContent: line.slice(0, n) }, at);
+        at += TV_HOLD[line[n - 1]] ?? 0;
+      }
+      // The caret is handed on rather than duplicated, and the last line keeps it.
+      if (i < TV_LINES.length - 1) {
+        at += TV_LINE_GAP;
+        tl.set(el, { attr: { "data-caret": "0" } }, at);
+      }
+    });
+
+    tvTlRef.current = tl;
+  }, []);
+
   const stop = useCallback(() => {
     tlRef.current?.kill();
     tlRef.current = null;
     stopDog();
     stopLoader();
+    stopBroadcast();
     const root = rootRef.current;
     if (root) delete root.dataset.playing;
     document.body.style.overflow = "";
-  }, [stopDog, stopLoader]);
+  }, [stopDog, stopLoader, stopBroadcast]);
 
   const play = useCallback(() => {
     const root = rootRef.current;
@@ -650,7 +829,7 @@ export default function WelcomeIntro() {
 
     void Promise.all([
       loadImages([LOADING_SHEET]),
-      preload(LAYERS),
+      preload([...LAYERS, TV_CAPTAIN]),
       // A refused autoplay must not stall the intro: the scene is the point and
       // the dog is a detail, so a rejection resolves like a success.
       video.play().catch(() => {}),
@@ -659,6 +838,7 @@ export default function WelcomeIntro() {
       loaderSheetRef.current = loaderSheet;
       startDog();
       startLoader();
+      startBroadcast();
 
       const tl = gsap.timeline({
         repeat: loopRef.current ? -1 : 0,
@@ -722,7 +902,7 @@ export default function WelcomeIntro() {
       // Fades the stage rather than the root so the controls stay reachable.
       tl.to([stage, walker], { opacity: 0, ease: "power2.inOut", duration: 0.65 }, 2.9);
     });
-  }, [stop, startDog, startLoader]);
+  }, [stop, startDog, startLoader, startBroadcast]);
 
   const skip = useCallback(() => {
     loopRef.current = false;
@@ -761,6 +941,32 @@ export default function WelcomeIntro() {
         <div ref={stageRef} className={styles.stage} aria-hidden="true">
           <div ref={farRef} className={`${styles.layer} ${styles.far}`} />
           <div ref={middleRef} className={`${styles.layer} ${styles.middle}`}>
+            <div className={styles.tv} aria-hidden="true">
+              <div ref={tvVeilRef} className={styles.tvVeil} />
+              <div ref={tvRasterRef} className={styles.tvRaster} />
+              <div ref={tvBodyRef} className={styles.tvBody}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  ref={tvCaptainRef}
+                  className={styles.tvCaptain}
+                  src={TV_CAPTAIN}
+                  alt=""
+                  draggable={false}
+                />
+                <span className={styles.tvCaption}>
+                  {/* GSAP types into these; the markup only supplies the boxes. */}
+                  {TV_LINES.map((line, i) => (
+                    <span
+                      key={line}
+                      className={styles.tvLine}
+                      ref={(el) => {
+                        tvLinesRef.current[i] = el;
+                      }}
+                    />
+                  ))}
+                </span>
+              </div>
+            </div>
             <div className={styles.statusLights} aria-hidden="true">
               <span className={styles.statusLight}>
                 <span
