@@ -4,6 +4,7 @@ import { useCallback, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import gsap from "gsap";
 import CustomEase from "gsap/CustomEase";
+import { CabinMonitorShell } from "./CabinMonitorShell";
 import styles from "./WelcomeIntro.module.css";
 
 gsap.registerPlugin(CustomEase);
@@ -941,6 +942,9 @@ export default function WelcomeIntro() {
         <div ref={stageRef} className={styles.stage} aria-hidden="true">
           <div ref={farRef} className={`${styles.layer} ${styles.far}`} />
           <div ref={middleRef} className={`${styles.layer} ${styles.middle}`}>
+            <div className={styles.tvShell} aria-hidden="true">
+              <CabinMonitorShell />
+            </div>
             <div className={styles.tv} aria-hidden="true">
               <div ref={tvVeilRef} className={styles.tvVeil} />
               <div ref={tvRasterRef} className={styles.tvRaster} />

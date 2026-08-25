@@ -242,25 +242,56 @@
   }
 }
 
+/* Housing for the cabin monitor, drawn in CabinMonitorShell.tsx. Sibling of .tv
+   and ahead of it in the DOM rather than its parent: .tv's geometry is the largest
+   axis-aligned rect inscribed in the trapezoid screen, measured against the plate,
+   and reparenting it would mean restating all four of those numbers in a new
+   coordinate space for no gain. The shell also has to carry the assembly's lean,
+   which a parent would pass down onto the captain and the caption.
+
+   The box is the plate region x84-366 / y206-524 as a share of the 16:9 stage, and
+   the SVG's viewBox is those same numbers, so its user units are plate pixels. The
+   painted assembly runs x94-355 / y218-512; the extra margin is room for the
+   contact shadow. */
+.tvShell {
+  position: absolute;
+  left: 4.102%;
+  top: 17.882%;
+  width: 13.77%;
+  height: 27.604%;
+  pointer-events: none;
+}
+
+.tvShell svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 /* Cabin monitor on the port wall. Inside .middle for the same reason
    .statusLights is: it has to ride the wall's push-in rather than drift over the
    artwork.
 
-   The screen is drawn on the curved wall, so its navy is a genuine trapezoid --
-   through the middle row it runs x135-310 of the 2048 plate, but by the bottom row
-   only x145-295 -- which an axis-aligned box can either cover or stay inside, not
-   both. This is the largest rect that stays inside, measured off the plate: x144-299,
-   y284-431. The previous box was 4px wider and 2px right of it, which put its
-   bottom-right corner over the drawn edge and onto the bezel.
+   This box is the screen's bounding box -- x137-303, y284-429 -- and it is clipped
+   to the screen's actual outline by #tvScreenClip, defined in CabinMonitorShell.tsx.
+   It used to be the largest rect that stayed *inside* the screen instead (x144-299,
+   y284-431), because an unclipped box that covered the outline would have put its
+   corners out on the bezel. The cost was a 5-10px margin of painted plate left
+   showing on all four sides, which is what read as the picture being a box floating
+   inside the monitor rather than the monitor's own screen. Clipping to the outline
+   gets the coverage without the corners, so the bezel now closes directly onto the
+   picture.
 
-   Not clipped, deliberately. .tvRaster's glow is the light the screen throws onto
-   the bezel, and overflow:hidden here would cut it off at the screen edge. */
+   Both the clip path and the aperture stroke in the shell come off the same outline
+   constant. They have to agree to the pixel: a disagreement either shows painted
+   navy as a rim, or lets the picture climb onto the bezel. */
 .tv {
   position: absolute;
-  left: 7.031%;
+  left: 6.689%;
   top: 24.653%;
-  width: 7.617%;
-  height: 12.847%;
+  width: 8.105%;
+  height: 12.587%;
+  clip-path: url(#tvScreenClip);
   /* 1cqw is 1% of the screen's width, which is what every length below is in:
      the monitor is a fixed share of a cover-scaled 16:9 stage, so a px anywhere
      in here would grow heavier as the stage shrinks. */
@@ -283,7 +314,6 @@
   position: absolute;
   inset: 0;
   background: radial-gradient(42% 42% at 50% 45%, #1b2636 0%, #253749 100%);
-  border-radius: 6%;
   opacity: 0;
 }
 
