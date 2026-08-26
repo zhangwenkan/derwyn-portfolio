@@ -285,8 +285,8 @@ const meterStops = () => {
   });
 };
 
-// Captain's broadcast on the port-wall monitor, keyed out of a green screen by
-// scripts/prepare-captain.mjs.
+// Captain's broadcast on the port-wall monitor. A hand-drawn pixel portrait that
+// already carries its own alpha, so nothing preprocesses it on the way in.
 const TV_CAPTAIN = "/assets/welcome/captain.webp";
 
 // Printable ASCII only, same constraint as the balloon copy: Oxanium is subset to
@@ -343,6 +343,121 @@ const TV_HOLD: Record<string, number> = { " ": 0.05, ",": 0.16, ".": 0.34 };
 // wrap.
 const TV_LINE_GAP = 0.45;
 
+// Signal break-up. The set is never clean: from the moment the picture arrives there
+// is a carrier of noise under it, and the break-ups are peaks in that carrier rather
+// than events on an otherwise still screen. A screen that is spotless until it
+// suddenly tears reads as an effect firing on cue; one that is always slightly wrong
+// reads as the far end of a long link.
+//
+// How often the grain is reshuffled while the signal is holding, and how often
+// during a break-up. Both drawn per step for the same reason the keystrokes are: an
+// even interval is a strobe, and interference has no tempo. The break-up rate is only
+// a little quicker than the carrier's, because past about 12 steps a second it stops
+// reading as a rate at all and reads as a flicker, and a flicker cannot be followed.
+const TV_NOISE_MIN = 0.055;
+const TV_NOISE_MAX = 0.145;
+const TV_GLITCH_MIN = 0.045;
+const TV_GLITCH_MAX = 0.135;
+
+// A break-up's length, and the share of it spent at full strength before tapering
+// out. The taper is not cosmetic: a burst that ends on its loudest step drops back to
+// the carrier within one frame, which reads as the effect being switched off rather
+// than as the signal recovering. Most of the window is taper, so the recovery is the
+// part being watched. The floor is a couple of steps -- short enough that a word
+// boundary gets a blink rather than an event.
+const TV_SPAN_MIN = 0.11;
+const TV_SPAN_MAX = 0.55;
+const TV_BURST_HOLD = 0.3;
+
+// Where the break-ups fall: in the pauses the typing already has. The shortest hold
+// that counts as a pause (a word boundary, so nearly all of them do), how long after
+// the character lands the picture goes, the pause length that earns a full-strength
+// break-up, and how likely the shortest pause is to get anything at all.
+//
+// Break-ups spaced on a schedule of their own keep landing mid-word, which reads as
+// two unrelated things sharing a screen -- and, since nothing about them varies with
+// what they land on, as the same event repeating however randomly they are spaced.
+// Hung off the pauses they read as one transmission struggling, and the pause's own
+// length then sets how long and how hard each one goes, so the message's phrasing
+// decides which are blinks and where the real one is.
+const TV_REST_MIN = 0.045;
+const TV_REST_LEAD = 0.06;
+const TV_REST_LONG = 0.8;
+const TV_REST_TAKE = 0.45;
+const TV_BURST_MIN = 0.26;
+const TV_BURST_MAX = 0.6;
+
+// The lull before the echo behind the last break-up, the echo's strength, and its
+// length against the one it answers. Two bursts at the end rather than one: a single
+// hit reads as a transition wipe, and what makes it a signal is that the picture comes
+// back wrong before it comes back.
+const TV_GLITCH_GAP = 0.4;
+const TV_ECHO_FORCE = 0.45;
+const TV_ECHO_SPAN = 0.6;
+
+// How long the carrier keeps running once the last break-up is over.
+const TV_NOISE_TAIL = 0.8;
+
+// Snow density: the band the carrier wanders inside, how far it can wander per step,
+// the jitter on top of that, and what a full-strength break-up adds. The carrier is
+// set by what the grain does between steps rather than by how it looks in a still --
+// a still understates it, since what makes low-amplitude noise read is that it moves.
+// Measured on the navy field, this band shifts a mean 4-6 of 255 per step, which is
+// well clear of the flicker threshold, against about 8 of lift on the field's black
+// level. Below it the grain is only technically present; above it the navy starts
+// reading as slate.
+//
+// The level walks rather than being redrawn per step. A fresh draw every step is
+// stationary: every stretch of the broadcast then has the same character, which is
+// what makes a long run of it feel repetitive however random the individual steps are.
+// A walk spends time near the top of the band and time near the bottom, so the link
+// has bad stretches and good ones.
+const TV_SNOW_MIN = 0.095;
+const TV_SNOW_MAX = 0.175;
+const TV_SNOW_DRIFT = 0.11;
+const TV_SNOW_JITTER = 0.035;
+const TV_SNOW_PEAK = 0.13;
+
+// Tear, as a share of the caption's width, so the widest step moves a band about 4px
+// of the source plate.
+//
+// The picture comes apart in bands rather than travelling as a block, and that is the
+// whole difference between a set with a bad signal and a set someone knocked. Each
+// band -- the portrait, then one per caption line -- draws its own direction and
+// distance, so the rows disagree with the rows above them, which is what losing
+// horizontal lock looks like. A rigid picture that slides and returns is a physical
+// event instead. For the same reason nothing here moves vertically and nothing eases
+// back: a vertical shift is a dropped frame, and an eased return is a spring settling.
+// Lock is binary, so every step of this snaps.
+//
+// The floor matters as much as the ceiling: a band that lands within a pixel of centre
+// is a hole in the tear. It sits outside the force multiplier for that reason --
+// scaled by force, a weak break-up would shrink its own visibility floor away and
+// emit steps that only technically moved.
+const TV_TEAR_X = 2.7;
+const TV_TEAR_X_MIN = 0.85;
+
+// How often a band is redrawn during a break-up. The ones passed over hold the offset
+// they were last given, which leaves them a step or two behind the taper: a row still
+// badly out while the rows around it have nearly recovered. Redrawing every row every
+// step is what makes a long break-up read as one texture -- the rows disagree, but
+// they disagree the same way at every step.
+const TV_BAND_TAKE = 0.72;
+
+// The dropout bar that crosses the picture during a break-up: how fast it travels, in
+// percent of the screen's height per second, its opacity at full force, how often a
+// break-up gets one, and the shortest window it will appear in. A rate rather than a
+// distance, so a short break-up gets a brief slip and a long one gets a full sweep,
+// instead of both covering the same ground at whatever speed their window implies.
+// Below the floor there is no room to sweep at all and the bar is one lit line for one
+// frame, which is a different fault and not this one. It never has to leave the frame
+// or wrap, because its opacity rides the force and the taper fades it out while it is
+// still moving.
+const TV_BAR_RATE = 84;
+const TV_BAR_ALPHA = 0.42;
+const TV_BAR_TAKE = 0.5;
+const TV_BAR_SPAN = 0.3;
+
 const loadImages = (sources: string[]) =>
   Promise.all(
     sources.map(
@@ -392,6 +507,9 @@ export default function WelcomeIntro() {
   const tvRasterRef = useRef<HTMLDivElement>(null);
   const tvBodyRef = useRef<HTMLDivElement>(null);
   const tvCaptainRef = useRef<HTMLImageElement>(null);
+  const tvBandRef = useRef<HTMLDivElement>(null);
+  const tvBarRef = useRef<HTMLDivElement>(null);
+  const tvSnowRef = useRef<HTMLDivElement>(null);
   const tvLinesRef = useRef<(HTMLSpanElement | null)[]>([]);
   const tvTlRef = useRef<gsap.core.Timeline | null>(null);
   const loaderSheetRef = useRef<HTMLImageElement | null>(null);
@@ -688,7 +806,20 @@ export default function WelcomeIntro() {
     const raster = tvRasterRef.current;
     const body = tvBodyRef.current;
     const captain = tvCaptainRef.current;
-    if (!veil || !raster || !body || !captain) return;
+    const bar = tvBarRef.current;
+    const snow = tvSnowRef.current;
+    if (!veil || !raster || !body || !captain || !bar || !snow) return;
+
+    // What the tear moves. Full-width rows, all of them, so one xPercent means the
+    // same distance wherever it lands: the portrait rides a stretched band of its own
+    // rather than being translated directly, since the art is only 51cqw wide against
+    // an 89cqw content box and would slip half as far as a caption line at the same
+    // figure. Empty lines cost nothing here -- a line that has not been typed into has
+    // no line box to move.
+    const bands: HTMLElement[] = [
+      tvBandRef.current,
+      ...tvLinesRef.current,
+    ].filter((el): el is HTMLElement => !!el);
 
     tvTlRef.current?.kill();
     const tl = gsap.timeline();
@@ -706,9 +837,12 @@ export default function WelcomeIntro() {
       },
       0,
     );
-    tl.set(body, { opacity: 0 }, 0);
+    tl.set(body, { opacity: 0, filter: "none" }, 0);
+    tl.set(bands, { xPercent: 0 }, 0);
+    tl.set(bar, { opacity: 0 }, 0);
     tl.set(captain, { opacity: 0, scale: 1.05 }, 0);
     tl.set(veil, { opacity: 0 }, 0);
+    tl.set(snow, { opacity: 0 }, 0);
 
     // The plate cuts to black first. power2.in holds the starfield almost to the
     // end of the tween and then drops it, which reads as the set losing the picture
@@ -761,7 +895,8 @@ export default function WelcomeIntro() {
       open,
     );
 
-    tl.to(body, { opacity: 1, duration: 0.3, ease: "none" }, open + TV_OPEN * 0.6);
+    const pictureOn = open + TV_OPEN * 0.6;
+    tl.to(body, { opacity: 1, duration: 0.3, ease: "none" }, pictureOn);
     tl.to(
       captain,
       { opacity: 1, scale: 1, duration: 0.42, ease: "power2.out" },
@@ -771,6 +906,17 @@ export default function WelcomeIntro() {
     // Typed, not revealed: every character is its own `set` at its own drawn
     // offset, so the cadence is uneven the way a person's is and the whole thing
     // still seeks and restarts with the timeline.
+    //
+    // The pauses are collected as they are laid down, because the interference hangs
+    // off them. Adjacent dead time is one pause and not two -- the beat between lines
+    // begins exactly where the period's own hold ends, and a break-up that read those
+    // as two short pauses would go twice instead of going once for longer.
+    const rests: { at: number; len: number }[] = [];
+    const rest = (t: number, len: number) => {
+      const last = rests[rests.length - 1];
+      if (last && t - (last.at + last.len) < 1e-6) last.len += len;
+      else if (len >= TV_REST_MIN) rests.push({ at: t, len });
+    };
     let at = open + TV_OPEN + 0.5;
     TV_LINES.forEach((line, i) => {
       const el = tvLinesRef.current[i];
@@ -780,14 +926,225 @@ export default function WelcomeIntro() {
       for (let n = 1; n <= line.length; n++) {
         at += gsap.utils.random(TV_KEY_MIN, TV_KEY_MAX);
         tl.set(el, { textContent: line.slice(0, n) }, at);
-        at += TV_HOLD[line[n - 1]] ?? 0;
+        const hold = TV_HOLD[line[n - 1]] ?? 0;
+        rest(at, hold);
+        at += hold;
       }
       // The caret is handed on rather than duplicated, and the last line keeps it.
       if (i < TV_LINES.length - 1) {
+        rest(at, TV_LINE_GAP);
         at += TV_LINE_GAP;
         tl.set(el, { attr: { "data-caret": "0" } }, at);
       }
     });
+
+    // Where the break-ups fall: one per pause in the typing, sized and weighted by how
+    // long that pause is. A word boundary gets a tick, the comma gets something worse,
+    // the line break worse again, and the full stop at the end gets the real thing with
+    // an echo behind it -- so the interference is phrased by the message instead of
+    // running alongside it. The likelihood rises with the pause too, which leaves the
+    // short ones as coin flips and the long ones certain: no two runs tick in the same
+    // places, but the beats that carry the shape are always there.
+    //
+    // Each burst fixes for its whole window the things that would read as a strobe if
+    // they were redrawn per step -- which side the comb leans, and the height the
+    // dropout bar enters at. A bar that reappears at a fresh height every 30ms is a
+    // flicker rather than a sweep, and a comb that changes hands every 30ms is the
+    // picture jumping rather than a phase error. `bar: null` is a burst without one.
+    const breakUp = (start: number, span: number, force: number, bar: boolean) => ({
+      at: start,
+      span,
+      force,
+      polarity: gsap.utils.random([-1, 1]),
+      bar:
+        bar && span >= TV_BAR_SPAN
+          ? gsap.utils.random(-12, 100 - span * TV_BAR_RATE)
+          : null,
+    });
+    // The span is held to the pause that earned it, so a break-up cannot run far into
+    // the characters on the far side of it -- the caption is being read through these,
+    // and a full-strength tear over a word costs the word. A pause whose anchor still
+    // falls inside the break-up before it is dropped rather than shortened: two
+    // overlapping windows are not something one tear track can express, and the walk
+    // would read the second one as already over.
+    const bursts: ReturnType<typeof breakUp>[] = [];
+    rests.slice(0, -1).forEach((r) => {
+      if (
+        gsap.utils.random(0, 1) >=
+        gsap.utils.clamp(
+          TV_REST_TAKE,
+          1,
+          gsap.utils.mapRange(TV_REST_MIN, TV_REST_LONG, TV_REST_TAKE, 1, r.len),
+        )
+      ) {
+        return;
+      }
+      const start = r.at + TV_REST_LEAD;
+      const prev = bursts[bursts.length - 1];
+      if (prev && start < prev.at + prev.span) return;
+      bursts.push(
+        breakUp(
+          start,
+          gsap.utils.clamp(TV_SPAN_MIN, TV_SPAN_MAX, r.len),
+          gsap.utils.clamp(
+            TV_BURST_MIN,
+            TV_BURST_MAX,
+            gsap.utils.mapRange(
+              TV_REST_MIN,
+              TV_REST_LONG,
+              TV_BURST_MIN,
+              TV_BURST_MAX,
+              r.len,
+            ) * gsap.utils.random(0.85, 1.15),
+          ),
+          gsap.utils.random(0, 1) < TV_BAR_TAKE,
+        ),
+      );
+    });
+    const finale = rests[rests.length - 1].at + TV_REST_LEAD;
+    bursts.push(breakUp(finale, TV_SPAN_MAX, 1, true));
+    bursts.push(
+      breakUp(
+        finale + TV_SPAN_MAX + TV_GLITCH_GAP,
+        TV_SPAN_MAX * TV_ECHO_SPAN,
+        TV_ECHO_FORCE,
+        gsap.utils.random(0, 1) < TV_BAR_TAKE,
+      ),
+    );
+    type Burst = (typeof bursts)[number];
+
+    // One walk lays down every step of the noise, carrier and break-up alike, so at
+    // any offset there is exactly one `set` deciding what the snow looks like. A
+    // separate always-on track and burst track would fight over opacity at every
+    // boundary. Every step is its own `set` at its own drawn offset, same as the
+    // keystrokes, so the whole thing seeks and replays with the timeline instead of
+    // needing a loop of its own.
+    //
+    // The snow jumps to a fresh offset in its own oversized tile each step, and during
+    // a break-up the bands are torn sideways under it. Neither lands on the raster:
+    // the raster is the phosphor field, and a field that slips is the whole set
+    // moving, whereas the picture coming apart inside a field that holds still is the
+    // signal losing its lock.
+    let drift = gsap.utils.random(0.2, 0.8);
+    let entered: Burst | null = null;
+    const noise = (t: number, burst: Burst | null, p: number) => {
+      // Steps are laid down in order, once each, so comparing against the last one is
+      // enough to know this is the step a break-up opens on.
+      const onset = burst !== null && burst !== entered;
+      entered = burst;
+      // The carrier level walks instead of being redrawn, so the noise floor has a
+      // shape over the length of the broadcast rather than only per step.
+      drift = gsap.utils.clamp(
+        0,
+        1,
+        drift + gsap.utils.random(-TV_SNOW_DRIFT, TV_SNOW_DRIFT),
+      );
+      // Force falls linearly across the back of the window, so the tear walks itself
+      // down in snapping steps instead of being switched off.
+      const force = burst
+        ? burst.force * Math.min(1, (1 - p) / (1 - TV_BURST_HOLD))
+        : 0;
+      tl.set(
+        snow,
+        {
+          opacity:
+            gsap.utils.interpolate(TV_SNOW_MIN, TV_SNOW_MAX, drift) +
+            gsap.utils.random(-TV_SNOW_JITTER, TV_SNOW_JITTER) +
+            TV_SNOW_PEAK * force,
+          backgroundPosition: `${gsap.utils.random(0, 100, 1)}% ${gsap.utils.random(
+            0,
+            100,
+            1,
+          )}%`,
+        },
+        t,
+      );
+      if (!burst) return;
+      // Per band, not per picture: the point of the tear is that the rows disagree,
+      // and one `set` over the array would give them all the same figure. Directions
+      // alternate down the bands off the burst's polarity, because a step where every
+      // row agrees is the picture shifting as a block -- the one thing this is not
+      // supposed to look like, and it does not take many such steps to establish that
+      // reading. Distances stay independent, so the rows disagree by amount as well as
+      // by side.
+      //
+      // Rows are passed over rather than every row being redrawn, which is also why the
+      // polarity has to belong to the burst and not to the step: a row holding an offset
+      // drawn under the previous step's polarity would be holding the wrong sign, and
+      // enough of those and the step is a block shift again. The step it opens on is
+      // exempt, because a row passed over there is still sitting at lock -- the tear
+      // would begin with a hole in it instead of coming apart all at once and then
+      // falling out of step with itself as it recovers.
+      bands.forEach((el, i) => {
+        if (!onset && gsap.utils.random(0, 1) > TV_BAND_TAKE) return;
+        tl.set(
+          el,
+          {
+            xPercent:
+              (i % 2 ? -burst.polarity : burst.polarity) *
+              (TV_TEAR_X_MIN +
+                gsap.utils.random(0, TV_TEAR_X - TV_TEAR_X_MIN) * force),
+          },
+          t,
+        );
+      });
+      if (burst.bar !== null) {
+        tl.set(
+          bar,
+          {
+            opacity: TV_BAR_ALPHA * (0.55 + 0.45 * force),
+            yPercent: burst.bar + p * burst.span * TV_BAR_RATE,
+          },
+          t,
+        );
+      }
+      // Interference takes the chroma before the luma, so the picture pales as it
+      // brightens rather than blowing out in colour. This one is the whole picture
+      // rather than per band, since a level shift is what the whole raster does.
+      tl.set(
+        body,
+        {
+          filter: `brightness(${1 + 0.18 * force}) saturate(${1 - 0.32 * force})`,
+        },
+        t,
+      );
+    };
+
+    // Lock regained, at the end of a break-up's window: zero-duration, like every
+    // other step. It used to be an eased tween sliding the picture home, which is
+    // what made the break-up read as the set being knocked rather than as a signal
+    // failing -- a continuous deceleration is a spring. What replaces it is the taper
+    // on the burst, which walks the tear down in snapping steps before this lands.
+    //
+    // Dropping the tween also drops the constraint that came with it: an eased `to`
+    // outliving its window would win every frame against the `set`s underneath it and
+    // swallow the next break-up, so the burst gaps had to clear its duration. Nothing
+    // here has a duration, so nothing can overlap.
+    const lock = (t: number) => {
+      tl.set(bands, { xPercent: 0 }, t);
+      tl.set(bar, { opacity: 0 }, t);
+      tl.set(body, { filter: "none" }, t);
+    };
+
+    const tail = bursts[bursts.length - 1];
+    let pending = 0;
+    for (let t = pictureOn; t < tail.at + tail.span + TV_NOISE_TAIL; ) {
+      while (
+        pending < bursts.length &&
+        t >= bursts[pending].at + bursts[pending].span
+      ) {
+        pending += 1;
+      }
+      const burst =
+        pending < bursts.length && t >= bursts[pending].at
+          ? bursts[pending]
+          : null;
+      noise(t, burst, burst ? (t - burst.at) / burst.span : 0);
+      t += burst
+        ? gsap.utils.random(TV_GLITCH_MIN, TV_GLITCH_MAX)
+        : gsap.utils.random(TV_NOISE_MIN, TV_NOISE_MAX);
+    }
+    bursts.forEach((b) => lock(b.at + b.span));
 
     tvTlRef.current = tl;
   }, []);
@@ -949,14 +1306,16 @@ export default function WelcomeIntro() {
               <div ref={tvVeilRef} className={styles.tvVeil} />
               <div ref={tvRasterRef} className={styles.tvRaster} />
               <div ref={tvBodyRef} className={styles.tvBody}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  ref={tvCaptainRef}
-                  className={styles.tvCaptain}
-                  src={TV_CAPTAIN}
-                  alt=""
-                  draggable={false}
-                />
+                <div ref={tvBandRef} className={styles.tvBand}>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    ref={tvCaptainRef}
+                    className={styles.tvCaptain}
+                    src={TV_CAPTAIN}
+                    alt=""
+                    draggable={false}
+                  />
+                </div>
                 <span className={styles.tvCaption}>
                   {/* GSAP types into these; the markup only supplies the boxes. */}
                   {TV_LINES.map((line, i) => (
@@ -970,6 +1329,8 @@ export default function WelcomeIntro() {
                   ))}
                 </span>
               </div>
+              <div ref={tvBarRef} className={styles.tvBar} />
+              <div ref={tvSnowRef} className={styles.tvSnow} />
             </div>
             <div className={styles.statusLights} aria-hidden="true">
               <span className={styles.statusLight}>

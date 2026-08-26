@@ -296,6 +296,10 @@
      the monitor is a fixed share of a cover-scaled 16:9 stage, so a px anywhere
      in here would grow heavier as the stage shrinks. */
   container-type: inline-size;
+  /* So .tvSnow's screen blend has the broadcast as its backdrop and nothing else.
+     Without it the nearest isolating ancestor is .middle, which would put the wall
+     and the monitor's own shell under the noise. */
+  isolation: isolate;
   pointer-events: none;
 }
 
@@ -377,20 +381,42 @@
   align-items: center;
   padding: 5cqw 5.5cqw 6cqw;
   opacity: 0;
-  will-change: opacity;
+  will-change: opacity, filter;
 }
 
-/* Broadcast bust, keyed by scripts/prepare-captain.mjs. Height-driven: the source
-   crop is a 0.72 portrait, so the screen's width is never the binding constraint
-   and fixing the height is what keeps the caption's room predictable.
-   The glow is the white twill blooming on the phosphor, which is also why there is
-   no drop shadow -- the screen is the light source, so the subject has nothing to
-   cast one onto. */
+/* A full-width row for the portrait to be torn in, so the tear has the same basis
+   here as it has on a caption line: the art is 51cqw wide against an 89cqw content
+   box, and an xPercent on the image itself would move it 0.57x as far as the same
+   figure on a line. Layout is unchanged -- the image was centred by the column
+   before and is centred by this row now. */
+.tvBand {
+  flex: none;
+  align-self: stretch;
+  display: flex;
+  justify-content: center;
+  will-change: transform;
+}
+
+/* Broadcast bust: a 221x234 pixel portrait carrying its own alpha, so there is no
+   keying or cropping step behind it. Height-driven, as it was for the keyed render:
+   54cqw is 89.6 px of a 2048-wide stage, and at this 0.944 aspect that leaves the
+   picture 84.6 wide inside a 147.7 px content box, so the width still never binds
+   and the caption's room stays predictable.
+
+   No image-rendering: pixelated, even though the art is drawn in blocks. The source
+   is 221 px wide and the box is 84.6 at a 2048 stage, 158.7 at 4K, 59.5 at 1440 --
+   every viewport reduces it, and nearest-neighbour on a reduction drops source
+   columns unevenly, which costs an arm of the sunglasses. The blocks read through
+   the smooth reduction on their own.
+
+   The glow is the white twill blooming on the phosphor. Weaker than the keyed
+   render wanted it: this art draws its own dark outline, and a wide halo sitting on
+   crisp block edges reads as a sticker rim rather than as bleed. */
 .tvCaptain {
   flex: none;
   height: 54cqw;
   width: auto;
-  filter: saturate(0.92) drop-shadow(0 0 1.1cqw rgba(150, 200, 255, 0.32));
+  filter: saturate(0.92) drop-shadow(0 0 0.5cqw rgba(150, 200, 255, 0.18));
 }
 
 /* Left aligned and stretched to the full width rather than shrink-wrapped and
@@ -420,6 +446,7 @@
 .tvLine {
   display: block;
   white-space: nowrap;
+  will-change: transform;
 }
 
 /* Caret, parked after whatever has been typed so far. An ::after rather than an
@@ -454,6 +481,64 @@
   100% {
     opacity: 0;
   }
+}
+
+/* Dropout: a bright band crossing the picture during a break-up, swept down the
+   screen a step at a time. Full-height rather than band-sized, so GSAP's `y` in
+   percent is a percent of the screen and one figure means the same sweep at any
+   viewport; the band itself is a background image sitting at this element's top and
+   travelling with it. It is allowed to run off the bottom -- .tv clips it -- because
+   its opacity rides the burst's force and fades out mid-sweep.
+
+   Bright, and blended screen for the reason .tvSnow is: the field is dark, and what a
+   struggling set does is throw light across the picture rather than shade it. The
+   radius matches .tvRaster's, since the raster is what the bar is crossing; without it
+   a band near the top or bottom paints into corners the picture does not occupy.
+
+   Not part of the noise walk's carrier: a hum bar that is always there is a set with a
+   fault of its own, and this one is meant to be the far end of the link failing. */
+.tvBar {
+  position: absolute;
+  inset: 0;
+  border-radius: 6%;
+  background-image: linear-gradient(
+    to bottom,
+    rgba(120, 170, 230, 0) 0%,
+    rgba(150, 195, 245, 0.34) 34%,
+    rgba(235, 247, 255, 0.9) 50%,
+    rgba(150, 195, 245, 0.3) 66%,
+    rgba(120, 170, 230, 0) 100%
+  );
+  background-size: 100% 13%;
+  background-repeat: no-repeat;
+  mix-blend-mode: screen;
+  opacity: 0;
+  will-change: opacity, transform;
+}
+
+/* The carrier the whole broadcast sits on, and the peaks in it. Above .tvBody rather
+   than inside it, because it is the only thing in the screen that is not part of the
+   picture.
+
+   feTurbulence in a data URI rather than a CSS filter on this element: baseFrequency
+   is measured in user space, so a filter would pin the grain to CSS px and let it
+   turn finer and finer as the stage grows, while a background can be sized in cqw
+   and holds the grain at a fixed share of the screen like every other length here.
+
+   Sized wider than the screen on purpose. GSAP jumps background-position in whole
+   steps, and with the tile stitched to itself every offset is a seamless but
+   different field of snow -- without the slack the same field would just slide,
+   which reads as a texture moving rather than as a signal breaking. */
+.tvSnow {
+  position: absolute;
+  inset: 0;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='s' x='0' y='0' width='100%25' height='100%25'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='1.5' numOctaves='1' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='2.1' intercept='-0.62'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23s)'/%3E%3C/svg%3E");
+  background-size: 220cqw auto;
+  /* Screen, not overlay: the field is navy, and snow on a dark CRT is light specks
+     arriving rather than the picture being dodged and burned. */
+  mix-blend-mode: screen;
+  opacity: 0;
+  will-change: opacity, background-position;
 }
 
 .front {
