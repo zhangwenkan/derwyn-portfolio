@@ -458,6 +458,42 @@ const TV_BAR_ALPHA = 0.42;
 const TV_BAR_TAKE = 0.5;
 const TV_BAR_SPAN = 0.3;
 
+// The chromatic split, as a share of the screen's width, and the alpha of the caption's
+// coloured fringes. Two channel-separated copies of the bust slide apart -- one carrying
+// red, the other green and blue -- and a pair of coloured shadows do the same to the
+// text. This is what the portrait gets instead of being carried sideways: a face is read
+// as an object, so any rigid motion of it belongs to the object and the set reads as
+// having been knocked. Misregistration has no physical analogue at all -- nothing in the
+// world moves a picture's red channel away from its green -- so it can only be the
+// signal.
+//
+// The floor sits outside the force multiplier for the same reason the tear's does: a
+// weak break-up whose split shrank to nothing would announce itself only by going
+// slightly brighter. The alpha is its own figure rather than being derived from the
+// distance, because deriving it would fade the colour out exactly as the split narrows
+// and leave the small bursts with no chroma to see.
+const TV_RGB_X = 1.5;
+const TV_RGB_X_MIN = 0.5;
+const TV_FRINGE = 0.85;
+
+// The displaced slab: a third, opaque copy of the bust clipped to one horizontal strip
+// and pushed sideways. Where the tear is a phase error -- rows arriving at the wrong
+// time -- this is data arriving out of order, a block of the frame filled from the wrong
+// place. Heights are a share of the picture; the offset is a share of its width, which
+// against the tear's share of the wider caption works out about three times as far in
+// pixels. It needs that margin: a block that moves as far as a row only reads as the row
+// having been drawn wider.
+//
+// Gated on force as well as sampled, so a word-boundary blink stays a blink. A slab is
+// the loudest thing in here, and one on every tick would be the picture's default state
+// rather than its worst moment.
+const TV_SLICE_H_MIN = 11;
+const TV_SLICE_H_MAX = 28;
+const TV_SLICE_X = 15;
+const TV_SLICE_X_MIN = 4;
+const TV_SLICE_TAKE = 0.55;
+const TV_SLICE_FORCE = 0.5;
+
 const loadImages = (sources: string[]) =>
   Promise.all(
     sources.map(
@@ -506,8 +542,8 @@ export default function WelcomeIntro() {
   const tvVeilRef = useRef<HTMLDivElement>(null);
   const tvRasterRef = useRef<HTMLDivElement>(null);
   const tvBodyRef = useRef<HTMLDivElement>(null);
-  const tvCaptainRef = useRef<HTMLImageElement>(null);
-  const tvBandRef = useRef<HTMLDivElement>(null);
+  const tvCaptainRef = useRef<HTMLDivElement>(null);
+  const tvSliceRef = useRef<HTMLImageElement>(null);
   const tvBarRef = useRef<HTMLDivElement>(null);
   const tvSnowRef = useRef<HTMLDivElement>(null);
   const tvLinesRef = useRef<(HTMLSpanElement | null)[]>([]);
@@ -808,18 +844,18 @@ export default function WelcomeIntro() {
     const captain = tvCaptainRef.current;
     const bar = tvBarRef.current;
     const snow = tvSnowRef.current;
-    if (!veil || !raster || !body || !captain || !bar || !snow) return;
+    const slice = tvSliceRef.current;
+    if (!veil || !raster || !body || !captain || !bar || !snow || !slice) return;
 
-    // What the tear moves. Full-width rows, all of them, so one xPercent means the
-    // same distance wherever it lands: the portrait rides a stretched band of its own
-    // rather than being translated directly, since the art is only 51cqw wide against
-    // an 89cqw content box and would slip half as far as a caption line at the same
-    // figure. Empty lines cost nothing here -- a line that has not been typed into has
-    // no line box to move.
-    const bands: HTMLElement[] = [
-      tvBandRef.current,
-      ...tvLinesRef.current,
-    ].filter((el): el is HTMLElement => !!el);
+    // What the tear moves: the caption rows, and only those. The portrait used to ride a
+    // stretched band of its own here, and it was the one row whose motion read as the set
+    // having been knocked rather than as a signal fault -- a face is an object, and an
+    // object that slides was pushed. It gets the chromatic split and the displaced slab
+    // instead, neither of which moves the bust as a whole. Empty lines cost nothing: a
+    // line that has not been typed into has no line box to move.
+    const bands: HTMLElement[] = tvLinesRef.current.filter(
+      (el): el is HTMLElement => !!el,
+    );
 
     tvTlRef.current?.kill();
     const tl = gsap.timeline();
@@ -837,9 +873,14 @@ export default function WelcomeIntro() {
       },
       0,
     );
-    tl.set(body, { opacity: 0, filter: "none" }, 0);
+    tl.set(
+      body,
+      { opacity: 0, filter: "none", "--tv-rgb": "0cqw", "--tv-fringe": 0 },
+      0,
+    );
     tl.set(bands, { xPercent: 0 }, 0);
     tl.set(bar, { opacity: 0 }, 0);
+    tl.set(slice, { opacity: 0, xPercent: 0 }, 0);
     tl.set(captain, { opacity: 0, scale: 1.05 }, 0);
     tl.set(veil, { opacity: 0 }, 0);
     tl.set(snow, { opacity: 0 }, 0);
@@ -947,10 +988,12 @@ export default function WelcomeIntro() {
     // places, but the beats that carry the shape are always there.
     //
     // Each burst fixes for its whole window the things that would read as a strobe if
-    // they were redrawn per step -- which side the comb leans, and the height the
-    // dropout bar enters at. A bar that reappears at a fresh height every 30ms is a
-    // flicker rather than a sweep, and a comb that changes hands every 30ms is the
-    // picture jumping rather than a phase error. `bar: null` is a burst without one.
+    // they were redrawn per step -- which side the comb leans, the height the dropout bar
+    // enters at, and whether this one displaces a slab at all. A bar that reappears at a
+    // fresh height every 30ms is a flicker rather than a sweep, a comb that changes hands
+    // every 30ms is the picture jumping rather than a phase error, and a slab that comes
+    // and goes every 30ms is a strobe rather than a block of bad data. `bar: null` is a
+    // burst without one.
     const breakUp = (start: number, span: number, force: number, bar: boolean) => ({
       at: start,
       span,
@@ -960,6 +1003,7 @@ export default function WelcomeIntro() {
         bar && span >= TV_BAR_SPAN
           ? gsap.utils.random(-12, 100 - span * TV_BAR_RATE)
           : null,
+      slice: force >= TV_SLICE_FORCE && gsap.utils.random(0, 1) < TV_SLICE_TAKE,
     });
     // The span is held to the pause that earned it, so a break-up cannot run far into
     // the characters on the far side of it -- the caption is being read through these,
@@ -1098,13 +1142,41 @@ export default function WelcomeIntro() {
           t,
         );
       }
+      // The slab, on the bursts that drew one: a fresh strip at a fresh offset every
+      // step, because a block that holds still for the length of the window reads as a
+      // badly composited layer rather than as a fault. It leans the way the burst's comb
+      // leans, so the picture has one side it is failing towards.
+      if (burst.slice) {
+        const top = gsap.utils.random(0, 100 - TV_SLICE_H_MAX);
+        const height = gsap.utils.random(TV_SLICE_H_MIN, TV_SLICE_H_MAX);
+        tl.set(
+          slice,
+          {
+            opacity: 1,
+            clipPath: `inset(${top}% 0% ${100 - top - height}% 0%)`,
+            xPercent:
+              burst.polarity *
+              (TV_SLICE_X_MIN +
+                gsap.utils.random(0, TV_SLICE_X - TV_SLICE_X_MIN) * force),
+          },
+          t,
+        );
+      }
       // Interference takes the chroma before the luma, so the picture pales as it
       // brightens rather than blowing out in colour. This one is the whole picture
       // rather than per band, since a level shift is what the whole raster does.
+      //
+      // The split rides the same `set`: it is a property of the signal rather than of any
+      // one row, and custom properties inherit, so writing them here reaches the bust's
+      // two channel copies and the caption's coloured fringes at once.
       tl.set(
         body,
         {
           filter: `brightness(${1 + 0.18 * force}) saturate(${1 - 0.32 * force})`,
+          "--tv-rgb": `${
+            TV_RGB_X_MIN + gsap.utils.random(0, TV_RGB_X - TV_RGB_X_MIN) * force
+          }cqw`,
+          "--tv-fringe": TV_FRINGE * (0.5 + 0.5 * force),
         },
         t,
       );
@@ -1123,7 +1195,12 @@ export default function WelcomeIntro() {
     const lock = (t: number) => {
       tl.set(bands, { xPercent: 0 }, t);
       tl.set(bar, { opacity: 0 }, t);
-      tl.set(body, { filter: "none" }, t);
+      tl.set(slice, { opacity: 0 }, t);
+      tl.set(
+        body,
+        { filter: "none", "--tv-rgb": "0cqw", "--tv-fringe": 0 },
+        t,
+      );
     };
 
     const tail = bursts[bursts.length - 1];
@@ -1306,11 +1383,29 @@ export default function WelcomeIntro() {
               <div ref={tvVeilRef} className={styles.tvVeil} />
               <div ref={tvRasterRef} className={styles.tvRaster} />
               <div ref={tvBodyRef} className={styles.tvBody}>
-                <div ref={tvBandRef} className={styles.tvBand}>
+                <div ref={tvCaptainRef} className={styles.tvPix}>
+                  {/* Three copies of the one image, each filling the box. The first two
+                      are the channel pair screened back together -- at rest they are
+                      indistinguishable from a single copy. The third is the slab, opaque
+                      and invisible until a break-up clips it. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    ref={tvCaptainRef}
-                    className={styles.tvCaptain}
+                    className={`${styles.tvCaptain} ${styles.tvChan} ${styles.tvChanR}`}
+                    src={TV_CAPTAIN}
+                    alt=""
+                    draggable={false}
+                  />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    className={`${styles.tvCaptain} ${styles.tvChan} ${styles.tvChanC}`}
+                    src={TV_CAPTAIN}
+                    alt=""
+                    draggable={false}
+                  />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    ref={tvSliceRef}
+                    className={`${styles.tvCaptain} ${styles.tvSlice}`}
                     src={TV_CAPTAIN}
                     alt=""
                     draggable={false}

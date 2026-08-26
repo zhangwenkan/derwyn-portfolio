@@ -296,6 +296,15 @@
      the monitor is a fixed share of a cover-scaled 16:9 stage, so a px anywhere
      in here would grow heavier as the stage shrinks. */
   container-type: inline-size;
+  /* How far the picture's colour channels are pulled apart, and how present the
+     caption's fringes are with them. Declared here so the resting state is registered
+     and invisible -- GSAP writes them on .tvBody during a break-up and the whole
+     subtree inherits. A length and a bare number rather than one value doing both:
+     the split has to stay symmetric about zero, and an alpha cannot be derived from a
+     distance without the fringe fading as the split narrows, which would hide the
+     effect exactly when it is at its most legible. */
+  --tv-rgb: 0cqw;
+  --tv-fringe: 0;
   /* So .tvSnow's screen blend has the broadcast as its backdrop and nothing else.
      Without it the nearest isolating ancestor is .middle, which would put the wall
      and the monitor's own shell under the noise. */
@@ -384,39 +393,90 @@
   will-change: opacity, filter;
 }
 
-/* A full-width row for the portrait to be torn in, so the tear has the same basis
-   here as it has on a caption line: the art is 51cqw wide against an 89cqw content
-   box, and an xPercent on the image itself would move it 0.57x as far as the same
-   figure on a line. Layout is unchanged -- the image was centred by the column
-   before and is centred by this row now. */
-.tvBand {
+/* The portrait's box, and the only thing sized: the copies inside it all fill it.
+   221x234 of pixel art carrying its own alpha, height-driven as the keyed render was
+   -- 54cqw is 89.6 px of a 2048-wide stage, and at this 0.944 aspect that leaves the
+   picture 84.6 wide inside a 147.7 px content box, so the width never binds and the
+   caption's room stays predictable. The ratio is declared rather than left to the
+   image, because the copies are absolutely positioned and would give the box no
+   height of its own.
+
+   The bust does not travel sideways with the caption any more. A head sliding back
+   and forth is the one part of the break-up that read as the set being shaken rather
+   than as the signal failing -- it is a face, so the eye tracks it as an object and
+   any rigid motion belongs to the object. What it gets instead is damage that only a
+   transmission can have: its colour channels come apart, and slabs of it arrive
+   offset. Neither of those moves the head.
+
+   The glow moves up here from the image. filter on this box groups it, which is what
+   gives the copies inside each other as a backdrop instead of the navy field, and it
+   has to be one box for the set of them anyway -- per-copy it would bloom three
+   times. Weaker than the keyed render wanted it: this art draws its own dark
+   outline, and a wide halo sitting on crisp block edges reads as a sticker rim
+   rather than as bleed. */
+.tvPix {
+  position: relative;
   flex: none;
-  align-self: stretch;
-  display: flex;
-  justify-content: center;
-  will-change: transform;
+  height: 54cqw;
+  aspect-ratio: 221 / 234;
+  filter: saturate(0.92) drop-shadow(0 0 0.5cqw rgba(150, 200, 255, 0.18));
 }
 
-/* Broadcast bust: a 221x234 pixel portrait carrying its own alpha, so there is no
-   keying or cropping step behind it. Height-driven, as it was for the keyed render:
-   54cqw is 89.6 px of a 2048-wide stage, and at this 0.944 aspect that leaves the
-   picture 84.6 wide inside a 147.7 px content box, so the width still never binds
-   and the caption's room stays predictable.
-
-   No image-rendering: pixelated, even though the art is drawn in blocks. The source
+/* No image-rendering: pixelated, even though the art is drawn in blocks. The source
    is 221 px wide and the box is 84.6 at a 2048 stage, 158.7 at 4K, 59.5 at 1440 --
    every viewport reduces it, and nearest-neighbour on a reduction drops source
    columns unevenly, which costs an arm of the sunglasses. The blocks read through
-   the smooth reduction on their own.
-
-   The glow is the white twill blooming on the phosphor. Weaker than the keyed
-   render wanted it: this art draws its own dark outline, and a wide halo sitting on
-   crisp block edges reads as a sticker rim rather than as bleed. */
+   the smooth reduction on their own. */
 .tvCaptain {
-  flex: none;
-  height: 54cqw;
-  width: auto;
-  filter: saturate(0.92) drop-shadow(0 0 0.5cqw rgba(150, 200, 255, 0.18));
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Chromatic split: the bust drawn twice, once as its red channel and once as its
+   green and blue, screen-blended back into one picture. Screen over two disjoint
+   channel sets is the original exactly -- (r,0,0) and (0,g,b) have nothing to
+   multiply away -- so at rest the pair is indistinguishable from the single image it
+   replaces, and the entire effect is one length: how far apart the two are pulled.
+   That is why it is channels and not tints. Two tinted copies both still carry all
+   three channels, so they can only ever wash the picture out, and they never
+   reconstruct.
+
+   The filters are in CabinMonitorShell's defs and must stay sRGB: filtering in
+   linear light makes the pair sum to a brighter picture than the one it replaced, so
+   the bust would sit lit differently from the caption beside it.
+
+   One custom property drives both, in opposite directions, so GSAP writes a single
+   value and the two stay symmetric about where the picture belongs. */
+.tvChan {
+  mix-blend-mode: screen;
+  will-change: transform;
+}
+
+.tvChanR {
+  filter: url(#tvChanR);
+  transform: translateX(calc(-1 * var(--tv-rgb)));
+}
+
+.tvChanC {
+  filter: url(#tvChanC);
+  transform: translateX(var(--tv-rgb));
+}
+
+/* Slab displacement: one full-colour copy clipped to a horizontal strip and thrown
+   sideways, so a band of the bust arrives out of position while the rest of it holds
+   still. This is the part that reads as a digital fault rather than an analogue one
+   -- a whole row of the picture arriving from the wrong place is a packet in the
+   wrong order, and it cannot be mistaken for the head moving, because the head is
+   still there underneath.
+
+   Opaque rather than blended: the strip is meant to be the picture, misplaced. A
+   lightened ghost of it reads as a reflection. Off entirely between break-ups; GSAP
+   owns the clip, the offset and the opacity. */
+.tvSlice {
+  opacity: 0;
+  will-change: transform, clip-path, opacity;
 }
 
 /* Left aligned and stretched to the full width rather than shrink-wrapped and
@@ -435,9 +495,15 @@
   color: #eaf4ff;
   /* Phosphor bleed, and at this size it is load-bearing rather than decorative:
      the face is a 200-weight hairline drawn about 10px tall, and the halo is what
-     gives the stroke enough presence on the dark field to be read. */
+     gives the stroke enough presence on the dark field to be read.
+     The last two layers are the caption's share of the chromatic split -- the same
+     red-left/cyan-right pair the bust gets, done with shadows because a hairline
+     glyph needs no channel separation to fringe: there is nothing inside the stroke
+     to separate. Alpha zero at rest, so they cost nothing until a break-up. */
   text-shadow: 0 0 0.42em rgba(150, 205, 255, 0.6),
-    0 0 0.12em rgba(214, 236, 255, 0.5);
+    0 0 0.12em rgba(214, 236, 255, 0.5),
+    calc(-1 * var(--tv-rgb)) 0 0 rgba(255, 82, 82, var(--tv-fringe)),
+    var(--tv-rgb) 0 0 rgba(72, 226, 255, var(--tv-fringe));
 }
 
 /* One per line. Empty until GSAP types into it, and an empty block takes no line

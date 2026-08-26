@@ -114,6 +114,29 @@ export function CabinMonitorShell() {
         <clipPath id="tvScreenClip" clipPathUnits="objectBoundingBox">
           <path d={SCREEN_CLIP} />
         </clipPath>
+        {/* Channel separation for the broadcast bust, referenced from the stylesheet
+            by two HTML img copies that are screen-blended back together. One keeps
+            red, the other keeps green and blue; alpha passes through both so the
+            portrait's own cutout survives. Together they are the source image
+            exactly, which is what lets the split rest at zero and be invisible.
+
+            colorInterpolationFilters="sRGB" is not optional. The default is
+            linearRGB, and filtering in linear light makes the screen of the two
+            copies come back brighter than the single image it replaced -- the bust
+            would then sit lit differently from the caption beside it, at rest, with
+            nothing animating. */}
+        <filter id="tvChanR" x="0" y="0" width="100%" height="100%" colorInterpolationFilters="sRGB">
+          <feColorMatrix
+            type="matrix"
+            values="1 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 1 0"
+          />
+        </filter>
+        <filter id="tvChanC" x="0" y="0" width="100%" height="100%" colorInterpolationFilters="sRGB">
+          <feColorMatrix
+            type="matrix"
+            values="0 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 1 0"
+          />
+        </filter>
       </defs>
 
       {/* The set standing off the wall. The painted one casts nothing at all, which
