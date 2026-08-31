@@ -6,6 +6,7 @@ import gsap from "gsap";
 import CustomEase from "gsap/CustomEase";
 import { CabinMonitorShell } from "./CabinMonitorShell";
 import { CabinMonitorSky, SKY_SPIN_SPAN } from "./CabinMonitorSky";
+import { CabinVent } from "./CabinVent";
 import styles from "./WelcomeIntro.module.css";
 
 gsap.registerPlugin(CustomEase);
@@ -1781,6 +1782,9 @@ export default function WelcomeIntro() {
               </div>
               <div ref={tvBarRef} className={styles.tvBar} />
               <div ref={tvSnowRef} className={styles.tvSnow} />
+            </div>
+            <div className={styles.vent} aria-hidden="true">
+              <CabinVent />
             </div>
             <div className={styles.statusLights} aria-hidden="true">
               <span className={styles.statusLight}>

@@ -88,6 +88,28 @@
   background-image: url("/assets/welcome/layer-middle.webp");
 }
 
+/* The starboard vent the lenses sit in, redrawn in CabinVent.tsx over the one
+   painted into the plate. Same registration as .tvShell: the box is a plate rect --
+   x1640-1936, y200-520 of 2048x1152 -- the SVG works in those same coordinates, and
+   it lives inside .middle so it rides the wall's push-in.
+
+   Ahead of .statusLights in the DOM rather than wrapping them, so the lenses paint
+   over the panel face without having to inherit its box. */
+.vent {
+  position: absolute;
+  left: 80.078%;
+  top: 17.361%;
+  width: 14.453%;
+  height: 27.778%;
+  pointer-events: none;
+}
+
+.vent svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 /* Three indicator lenses under the starboard vent. Their box is registered to
    the 2048x1152 source plate, and lives inside .middle so the lenses inherit the
    wall's GSAP push-in rather than drifting over the artwork. Container units keep
