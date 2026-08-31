@@ -312,17 +312,35 @@
   pointer-events: none;
 }
 
+/* The monitor's idle picture -- planet, ring and stars -- drawn in CabinMonitorSky.tsx.
+   Bottom of .tv's stack, and the one layer here whose opacity never moves: the
+   broadcast fades up over it and fades back off it at the sign-off, so the set begins
+   and ends on the same starfield.
+
+   Inset rather than a box of its own, because the SVG's viewBox is .tv's plate rect
+   exactly. That is also what lets it use preserveAspectRatio="none": the stage is
+   always 16:9, so both axes scale by the same factor and the globe stays round. */
+.tvSky {
+  position: absolute;
+  inset: 0;
+}
+
+.tvSky svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
 /* The set going dark, one beat ahead of the signal. Needed because the dot strikes
-   at the screen's centre, which is exactly where the drawn plate is brightest: on
-   the planet's lit face a ~5px white dot reads as one more specular highlight
+   at the screen's centre, which is exactly where .tvSky is brightest: on the
+   planet's lit face a ~5px white dot reads as one more specular highlight
    instead of as an arriving signal. Blanking first also turns the sequence into a
    channel change rather than a bloom over wallpaper, which is the truer CRT
    gesture. Stays up for the rest of the broadcast behind the opaque raster.
-   The outer stop is #253749, the field navy sampled just inside the drawn screen
-   edge, so what arrives is the planet and stars going out rather than a black
-   rectangle: this box is inscribed in a trapezoid screen, so any colour of its own
-   shows as a rim on all four sides. Only the centre goes darker than the field, and
-   that is the part with a planet to cover. */
+   The outer stop is #253749, which is the field navy .tvSky paints, so what arrives
+   is the planet and stars going out rather than a black rectangle -- any other value
+   would show as the picture area lifting away from the sky it covers. Only the centre
+   goes darker than the field, and that is the part with a planet to cover. */
 .tvVeil {
   position: absolute;
   inset: 0;

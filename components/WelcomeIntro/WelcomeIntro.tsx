@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import gsap from "gsap";
 import CustomEase from "gsap/CustomEase";
 import { CabinMonitorShell } from "./CabinMonitorShell";
+import { CabinMonitorSky, SKY_SPIN_SPAN } from "./CabinMonitorSky";
 import styles from "./WelcomeIntro.module.css";
 
 gsap.registerPlugin(CustomEase);
@@ -295,13 +296,50 @@ const TV_CAPTAIN = "/assets/welcome/captain.webp";
 const TV_LINES = ["Hey, I'm Captain King.", "Welcome aboard."];
 
 // The plate's own starfield gets this long to be the thing the eye lands on, so
-// the blank has something to take away rather than opening onto nothing.
-const TV_LEAD = 0.7;
+// the blank has something to take away rather than opening onto nothing. At
+// TV_SPIN per revolution the window has to span a noticeable fraction of a turn,
+// or the globe reads as a still and the spin lands nowhere.
+const TV_LEAD = 2.3;
 
-// The plate goes dark this long before the dot, and holds there. Short enough to
-// read as the set cutting out, long enough that the eye has registered black by
-// the time the beam lands on it.
-const TV_BLANK = 0.16;
+// How the starfield leaves. Two versions before this one both tried to make it the
+// power-on run backwards -- collapse to a line, pinch to a dot -- and both read as the
+// same ceremony performed twice, because that is what they were. Overlapping the beats
+// and handing the dot over made the seam invisible without changing the fact that the
+// eye was being shown one gesture and then its mirror.
+//
+// So the departure is no longer the arrival's inverse. Fog: the field is pulled apart
+// into wisps and goes soft, drifting as it goes, and only the dark it leaves behind is
+// shared with the power-on. Soft against hard, lateral against centred, organic against
+// geometric -- nothing about it rhymes with the beam, which is the point.
+const TV_FOG = 0.8;
+
+// Displacement scale and blur at full fog, in plate px. The warp is what makes it fog
+// rather than defocus: a blur alone is a camera losing focus, where a picture torn into
+// streaks that then go soft is something passing in front of it.
+const TV_FOG_WARP = 26;
+const TV_FOG_BLUR = 4.5;
+
+// The noise field's own frequency, start to end. Animating it is what makes the fog
+// flow: the pattern doing the displacing keeps changing shape, so the smear rolls
+// instead of sitting there as one frozen distortion. Coarsening as it thickens, because
+// fine noise reads as grain and what this wants is volume.
+const TV_FOG_FREQ_IN = 0.045;
+const TV_FOG_FREQ_OUT = 0.011;
+
+// Lateral drift while it dissolves, in plate px. Small on purpose -- it only has to give
+// the dissolve a direction, and anything larger reads as the picture sliding off.
+const TV_FOG_DRIFT = 9;
+
+// Where in the fog the thinning starts, as a share of it. The warp and the blur get this
+// much of a head start: a picture that begins fading on the first frame is a crossfade
+// with a texture over it, and the tearing is the part that has to be seen.
+const TV_FOG_LAG = 0.3;
+
+// The plate goes dark this long before the dot, and holds there. Short enough to read as
+// the set having nothing to show, long enough that the eye has registered dark by the
+// time the beam lands on it. The veil rides exactly this window: it is opaque, so putting
+// any of it over the dissolve would make it the thing taking the picture away, which is
+// the curtain this whole beat exists to stop being. It belongs to the dark, not to the fog.
 const TV_BLANK_HOLD = 0.16;
 
 // CRT power-on, in the three beats the gesture actually has: the beam blooms at
@@ -397,6 +435,61 @@ const TV_ECHO_SPAN = 0.6;
 
 // How long the carrier keeps running once the last break-up is over.
 const TV_NOISE_TAIL = 0.8;
+
+// Sign-off. The transmission is not faded out, it is lost: the last break-up is the one
+// the picture does not come back from. A clean dissolve reads as someone turning the
+// picture down, and nothing else about this link has ever behaved that way -- the whole
+// broadcast has been coming apart in steps, so the end of it comes apart in steps too.
+//
+// The lull before the terminal break-up, its window, the share of that window spent at
+// full strength before the picture starts leaving, and where the picture is gone by.
+// The lull is not TV_GLITCH_GAP: two equal gaps in a row is a tempo, and the point of
+// this one is that the picture had come back before it went. The tail of the window is
+// deliberate too -- full-strength tear over an empty screen says the signal is still
+// arriving and there is simply nothing left in it.
+const TV_OFF_LEAD = 0.5;
+const TV_OFF_SPAN = 1.2;
+const TV_OFF_HOLD = 0.25;
+const TV_OFF_GONE = 0.82;
+
+// How far below its ceiling one step can pull the picture, as a share of whatever is
+// left rather than as a flat subtraction. Multiplicative for two reasons: a flat dip
+// deep enough to be worth watching drives the picture to zero while most of the window
+// is still to come, so it dies early and the length of its death varies wildly run to
+// run; and clamping at zero flattens the variation exactly where the flicker should be
+// finest. Scaled, the flicker is loud while there is picture to lose and quiet once
+// there is not, and the ceiling alone decides when it is gone.
+const TV_OFF_DIP = 0.55;
+
+// The one beat where the picture comes back. Eight even steps down is still a fade
+// however finely it is cut; what says the link is dying is that it recovers once and
+// then does not. This is the same phrasing as the finale-plus-echo pair one level up,
+// and it is here for the same reason.
+//
+// It moves the ceiling rather than a single step, so the recovery lasts long enough to
+// be read as one, and how far through the death it lands is drawn per run. The per-step
+// dips cannot be trusted to supply this: towards the end the ceiling is falling faster
+// than a dip can lift a step above the one before, so the back half of the window can
+// only ever descend.
+const TV_OFF_BACK = 0.3;
+const TV_OFF_BACK_AT_MIN = 0.35;
+const TV_OFF_BACK_AT_MAX = 0.6;
+
+// Snow with nothing under it. Dead air is louder than the carrier ever gets while the
+// picture is up; left at the carrier's own level an empty screen reads as the set
+// having been switched off, and a switched-off set has no starfield to come back to.
+const TV_OFF_SNOW = 0.3;
+
+// Field out, once the picture has been gone long enough to register as gone. What is
+// underneath is .tvSky, which has been running the whole time, so the monitor ends on
+// the starfield it began on rather than on a hole.
+const TV_OFF_FIELD = 0.5;
+
+// One revolution of the globe's surface. Slow enough that no single frame reads as
+// motion -- what it is for is that a still of the monitor taken a few seconds apart
+// is not the same still, which is the difference between an idle screen and a
+// picture pasted onto the wall.
+const TV_SPIN = 10;
 
 // Snow density: the band the carrier wanders inside, how far it can wander per step,
 // the jitter on top of that, and what a full-strength break-up adds. The carrier is
@@ -546,6 +639,12 @@ export default function WelcomeIntro() {
   const tvSliceRef = useRef<HTMLImageElement>(null);
   const tvBarRef = useRef<HTMLDivElement>(null);
   const tvSnowRef = useRef<HTMLDivElement>(null);
+  const tvSpinRef = useRef<SVGGElement>(null);
+  const tvSpinTweenRef = useRef<gsap.core.Tween | null>(null);
+  const tvSkyPicRef = useRef<SVGGElement>(null);
+  const tvSkyFogRef = useRef<SVGFilterElement>(null);
+  const tvStarRefs = useRef<(SVGUseElement | null)[]>([]);
+  const tvStarTweensRef = useRef<gsap.core.Animation[]>([]);
   const tvLinesRef = useRef<(HTMLSpanElement | null)[]>([]);
   const tvTlRef = useRef<gsap.core.Timeline | null>(null);
   const loaderSheetRef = useRef<HTMLImageElement | null>(null);
@@ -835,6 +934,10 @@ export default function WelcomeIntro() {
   const stopBroadcast = useCallback(() => {
     tvTlRef.current?.kill();
     tvTlRef.current = null;
+    tvSpinTweenRef.current?.kill();
+    tvSpinTweenRef.current = null;
+    tvStarTweensRef.current.forEach((t) => t.kill());
+    tvStarTweensRef.current = [];
   }, []);
 
   const startBroadcast = useCallback(() => {
@@ -845,7 +948,70 @@ export default function WelcomeIntro() {
     const bar = tvBarRef.current;
     const snow = tvSnowRef.current;
     const slice = tvSliceRef.current;
-    if (!veil || !raster || !body || !captain || !bar || !snow || !slice) return;
+    const spin = tvSpinRef.current;
+    const pic = tvSkyPicRef.current;
+    const fog = tvSkyFogRef.current;
+    const stars = tvStarRefs.current.filter(
+      (el): el is SVGUseElement => !!el,
+    );
+    if (
+      !veil ||
+      !raster ||
+      !body ||
+      !captain ||
+      !bar ||
+      !snow ||
+      !slice ||
+      !spin ||
+      !pic ||
+      !fog ||
+      stars.length === 0
+    )
+      return;
+
+    // The fog's three primitives, read off the filter rather than passed down as three
+    // more refs: they are the filter's own structure, and a component that has to hand
+    // out a ref per primitive cannot change that structure without changing its props.
+    const turb = fog.querySelector("feTurbulence");
+    const warp = fog.querySelector("feDisplacementMap");
+    const soften = fog.querySelector("feGaussianBlur");
+    if (!turb || !warp || !soften) return;
+
+    // The globe turning, on a tween of its own rather than a track of the broadcast
+    // timeline: it has to be running before the transmission arrives and still be
+    // running after the sign-off, and the timeline below covers neither end.
+    // One span of travel per pass across two tiles a span apart, so the loop is a
+    // continuous surface and not a rewind.
+    tvSpinTweenRef.current?.kill();
+    tvSpinTweenRef.current = gsap.fromTo(
+      spin,
+      { x: -SKY_SPIN_SPAN },
+      { x: 0, duration: TV_SPIN, ease: "none", repeat: -1 },
+    );
+
+    // The stars: each one its own irregular pulse, so no two are ever in step and
+    // the field never reads as a texture blinking in unison. Each pulse is one
+    // tween-and-wait cycle scheduled by gsap.delayedCall -- the gap is drawn fresh
+    // every time, which is what keeps the rhythm from being a metronome.
+    tvStarTweensRef.current.forEach((t) => t.kill());
+    stars.forEach((star, i) => {
+      const twinkle = () => {
+        const peak = 0.3 + Math.random() * 0.6;
+        const up = 0.08 + Math.random() * 0.12;
+        const down = 0.15 + Math.random() * 0.35;
+        const pulse = gsap.timeline({
+          onComplete: () => {
+            const gap = gsap.delayedCall(0.4 + Math.random() * 2.6, twinkle);
+            tvStarTweensRef.current[i] = gap;
+          },
+        });
+        pulse
+          .to(star, { opacity: peak, duration: up, ease: "sine.inOut" })
+          .to(star, { opacity: 1, duration: down, ease: "sine.inOut" });
+        tvStarTweensRef.current[i] = pulse;
+      };
+      twinkle();
+    });
 
     // What the tear moves: the caption rows, and only those. The portrait used to ride a
     // stretched band of its own here, and it was the one row whose motion read as the set
@@ -884,21 +1050,100 @@ export default function WelcomeIntro() {
     tl.set(captain, { opacity: 0, scale: 1.05 }, 0);
     tl.set(veil, { opacity: 0 }, 0);
     tl.set(snow, { opacity: 0 }, 0);
+    // The picture at rest, and explicitly so at position zero: replay re-enters this
+    // with the screen left wherever the last pass ended. The filter goes back to the
+    // attribute rather than to an inline `none` -- an inline one would outrank the
+    // attribute the fog is attached through and the dissolve would never appear.
+    tl.set(pic, { opacity: 1, x: 0, y: 0 }, 0);
+    tl.set(pic, { attr: { filter: "none" } }, 0);
+    tl.set(turb, { attr: { baseFrequency: TV_FOG_FREQ_IN } }, 0);
+    tl.set(warp, { attr: { scale: 0 } }, 0);
+    tl.set(soften, { attr: { stdDeviation: 0 } }, 0);
 
-    // The plate cuts to black first. power2.in holds the starfield almost to the
-    // end of the tween and then drops it, which reads as the set losing the picture
-    // rather than as a fade.
+    // The field fogs over. Attached here rather than left on the group for the whole
+    // starfield window: the mottling spin invalidates the group every frame, so a live
+    // filter would re-run turbulence over all 2.3s of it for no visible effect.
+    tl.set(pic, { attr: { filter: "url(#skyFog)" } }, TV_LEAD);
+
+    // Warp first and blur behind it, and the easings are what actually make that true
+    // rather than nominal: the warp decelerates in, so the picture is visibly disturbed
+    // while it is still solid, and the blur accelerates in behind it. Both on power1.in
+    // left the first half of the beat inert and put everything in the last third, which
+    // is the shape of something abrupt with a long wind-up.
     tl.to(
-      veil,
-      { opacity: 1, duration: TV_BLANK, ease: "power2.in" },
-      TV_LEAD - TV_BLANK - TV_BLANK_HOLD,
+      warp,
+      {
+        attr: { scale: TV_FOG_WARP },
+        duration: TV_FOG,
+        ease: "sine.out",
+      },
+      TV_LEAD,
+    );
+    tl.to(
+      soften,
+      {
+        attr: { stdDeviation: TV_FOG_BLUR },
+        duration: TV_FOG,
+        ease: "power1.in",
+      },
+      TV_LEAD,
     );
 
-    // The beam strikes rather than fades up, then sits there long enough to be a
-    // dot instead of a stage the sweep passes through.
-    tl.to(raster, { opacity: 1, duration: TV_DOT_IN, ease: "none" }, TV_LEAD);
+    // And the noise itself coarsens, linearly, for the whole beat. This is the track that
+    // makes it flow: the pattern doing the displacing is never the same twice, so the
+    // smear rolls instead of sitting there.
+    tl.to(
+      turb,
+      {
+        attr: { baseFrequency: TV_FOG_FREQ_OUT },
+        duration: TV_FOG,
+        ease: "none",
+      },
+      TV_LEAD,
+    );
 
-    const sweep = TV_LEAD + TV_DOT_HOLD;
+    // Drifting as it goes, up and to the right. Linear and small: it only has to give the
+    // dissolve a direction.
+    tl.to(
+      pic,
+      {
+        x: TV_FOG_DRIFT,
+        y: -TV_FOG_DRIFT * 0.35,
+        duration: TV_FOG,
+        ease: "none",
+      },
+      TV_LEAD,
+    );
+
+    // The thinning starts late and finishes with the rest. Fading from the first frame
+    // would make this a crossfade with a texture on it -- the picture has to be visibly
+    // torn while it is still there, or the warp is something the eye never gets to see.
+    tl.to(
+      pic,
+      {
+        opacity: 0,
+        duration: TV_FOG * (1 - TV_FOG_LAG),
+        ease: "power2.in",
+      },
+      TV_LEAD + TV_FOG * TV_FOG_LAG,
+    );
+
+    // The veil takes the dark, not the picture. It starts where the picture ends and is
+    // fully up as the beam arrives, so its only job is the one it was written for:
+    // darkening the centre so the dot has somewhere dark to strike.
+    tl.to(
+      veil,
+      { opacity: 1, duration: TV_BLANK_HOLD, ease: "power1.in" },
+      TV_LEAD + TV_FOG,
+    );
+
+    // The beam strikes into the dark the fog left, after a hold short enough to read as
+    // the set having nothing to show. Then it sits there long enough to be a dot instead
+    // of a stage the sweep passes through.
+    const dot = TV_LEAD + TV_FOG + TV_BLANK_HOLD;
+    tl.to(raster, { opacity: 1, duration: TV_DOT_IN, ease: "none" }, dot);
+
+    const sweep = dot + TV_DOT_HOLD;
     tl.to(raster, { scaleX: 1, duration: TV_SWEEP, ease: "power2.out" }, sweep);
     tl.to(
       raster,
@@ -935,6 +1180,15 @@ export default function WelcomeIntro() {
       },
       open,
     );
+
+    // The starfield is put back the instant the raster is opaque and full size, which
+    // is the one moment in the broadcast when nothing can see it happen. It has to
+    // happen somewhere: the sign-off dissolves the raster, the veil and the snow away
+    // and expects to land on the sky, and the sky is currently fogged out and drifted
+    // off its centre. Detaching the filter here is also what stops the turbulence being
+    // recomputed under the broadcast for the rest of the run.
+    tl.set(pic, { opacity: 1, x: 0, y: 0 }, open + TV_OPEN);
+    tl.set(pic, { attr: { filter: "none" } }, open + TV_OPEN);
 
     const pictureOn = open + TV_OPEN * 0.6;
     tl.to(body, { opacity: 1, duration: 0.3, ease: "none" }, pictureOn);
@@ -994,10 +1248,24 @@ export default function WelcomeIntro() {
     // every 30ms is the picture jumping rather than a phase error, and a slab that comes
     // and goes every 30ms is a strobe rather than a block of bad data. `bar: null` is a
     // burst without one.
-    const breakUp = (start: number, span: number, force: number, bar: boolean) => ({
+    //
+    // `fade` marks the one break-up the picture does not survive. It changes two things
+    // about how the window is played rather than adding a track: the force stops tapering
+    // (nothing is recovering) and the picture's own opacity joins the per-step walk.
+    const breakUp = (
+      start: number,
+      span: number,
+      force: number,
+      bar: boolean,
+      fade = false,
+    ) => ({
       at: start,
       span,
       force,
+      fade,
+      back: fade
+        ? gsap.utils.random(TV_OFF_BACK_AT_MIN, TV_OFF_BACK_AT_MAX)
+        : 0,
       polarity: gsap.utils.random([-1, 1]),
       bar:
         bar && span >= TV_BAR_SPAN
@@ -1055,6 +1323,13 @@ export default function WelcomeIntro() {
         gsap.utils.random(0, 1) < TV_BAR_TAKE,
       ),
     );
+    // And the one that ends it. Hung off the echo rather than off a pause, because there
+    // is no caption left for it to be phrased by: the message is finished, so what the
+    // last event answers to is the previous event.
+    const echo = bursts[bursts.length - 1];
+    bursts.push(
+      breakUp(echo.at + echo.span + TV_OFF_LEAD, TV_OFF_SPAN, 1, true, true),
+    );
     type Burst = (typeof bursts)[number];
 
     // One walk lays down every step of the noise, carrier and break-up alike, so at
@@ -1070,6 +1345,10 @@ export default function WelcomeIntro() {
     // moving, whereas the picture coming apart inside a field that holds still is the
     // signal losing its lock.
     let drift = gsap.utils.random(0.2, 0.8);
+    // How far gone the picture is. It is left where the terminal break-up's last step
+    // put it rather than being reset, so the dead air after that window is dead air and
+    // not the carrier again.
+    let lost = 0;
     let entered: Burst | null = null;
     const noise = (t: number, burst: Burst | null, p: number) => {
       // Steps are laid down in order, once each, so comparing against the last one is
@@ -1084,17 +1363,32 @@ export default function WelcomeIntro() {
         drift + gsap.utils.random(-TV_SNOW_DRIFT, TV_SNOW_DRIFT),
       );
       // Force falls linearly across the back of the window, so the tear walks itself
-      // down in snapping steps instead of being switched off.
+      // down in snapping steps instead of being switched off. The terminal one is the
+      // exception: it holds at full to the end, since a taper is a recovery and there is
+      // nothing here to recover.
       const force = burst
-        ? burst.force * Math.min(1, (1 - p) / (1 - TV_BURST_HOLD))
+        ? burst.fade
+          ? burst.force
+          : burst.force * Math.min(1, (1 - p) / (1 - TV_BURST_HOLD))
         : 0;
+      if (burst?.fade) {
+        const raw = (p - TV_OFF_HOLD) / (TV_OFF_GONE - TV_OFF_HOLD);
+        lost = gsap.utils.clamp(
+          0,
+          1,
+          raw > burst.back && raw < burst.back + TV_OFF_BACK
+            ? raw - TV_OFF_BACK
+            : raw,
+        );
+      }
       tl.set(
         snow,
         {
           opacity:
             gsap.utils.interpolate(TV_SNOW_MIN, TV_SNOW_MAX, drift) +
             gsap.utils.random(-TV_SNOW_JITTER, TV_SNOW_JITTER) +
-            TV_SNOW_PEAK * force,
+            TV_SNOW_PEAK * force +
+            TV_OFF_SNOW * lost,
           backgroundPosition: `${gsap.utils.random(0, 100, 1)}% ${gsap.utils.random(
             0,
             100,
@@ -1180,6 +1474,24 @@ export default function WelcomeIntro() {
         },
         t,
       );
+      // The picture leaving, on the terminal break-up only, and on the same clock as
+      // everything else in the window rather than on a tween of its own. A ceiling that
+      // walks down with a fresh dip drawn under it per step: some steps land far below
+      // the one before and some land above it, so the picture is fighting to stay rather
+      // than being turned off. A tween here would be a dissolve with a tear playing over
+      // the top of it, which is two things happening at once instead of one thing.
+      if (burst.fade) {
+        tl.set(
+          body,
+          {
+            opacity:
+              lost === 0
+                ? 1
+                : (1 - lost) * (1 - gsap.utils.random(0, TV_OFF_DIP)),
+          },
+          t,
+        );
+      }
     };
 
     // Lock regained, at the end of a break-up's window: zero-duration, like every
@@ -1222,6 +1534,21 @@ export default function WelcomeIntro() {
         : gsap.utils.random(TV_NOISE_MIN, TV_NOISE_MAX);
     }
     bursts.forEach((b) => lock(b.at + b.span));
+    // The picture does not come back from the last one. lock() homes the layers that are
+    // still on screen after it; this pins the picture itself, in case the walk's last
+    // step inside that window landed a hair above zero.
+    tl.set(body, { opacity: 0 }, tail.at + tail.span);
+
+    // Sign-off. The picture is already gone by here -- it went inside the terminal
+    // break-up, and TV_NOISE_TAIL of dead air has run since. All that is left is to drop
+    // the field, uncovering .tvSky: the set stops receiving and returns to its own idle
+    // picture. Not the power-on run backwards -- a raster collapsing to a dot is a set
+    // being switched off, and a switched-off set has no starfield to come back to.
+    tl.to(
+      [raster, veil, snow],
+      { opacity: 0, duration: TV_OFF_FIELD, ease: "power2.inOut" },
+      tail.at + tail.span + TV_NOISE_TAIL,
+    );
 
     tvTlRef.current = tl;
   }, []);
@@ -1289,6 +1616,26 @@ export default function WelcomeIntro() {
       tl.set([stage, walker], { opacity: 1 }, 0);
       tl.set([far, middle, front], { opacity: 1, display: "block" }, 0);
       tl.set([middle, front], { scale: 1, filter: "blur(0px)" }, 0);
+
+      // The monitor stops the moment the dolly starts. .middle runs to scale 11 under
+      // a 5px blur, and a subtree still repainting inside that forces the whole
+      // blurred plane to re-rasterise every frame. At these paces the freeze is
+      // not something you can see; the dropped frames would be.
+      //
+      // The broadcast timeline is in here too, not just the sky. It used to end at
+      // ~7.2s against a 9-10s walk and so was reliably over before this ran, but the
+      // longer starfield window and the stepped sign-off have pushed it past 11s --
+      // .tvSnow reshuffles a mix-blend-mode layer every few frames, which is the most
+      // expensive thing on the plate to leave running under the blur.
+      tl.call(
+        () => {
+          tvSpinTweenRef.current?.pause();
+          tvStarTweensRef.current.forEach((t) => t.pause());
+          tvTlRef.current?.pause();
+        },
+        undefined,
+        0,
+      );
 
       // Three planes share the window centre as their origin; the speed spread
       // between them is what sells the dolly through the glass. The far plane
@@ -1380,6 +1727,14 @@ export default function WelcomeIntro() {
               <CabinMonitorShell />
             </div>
             <div className={styles.tv} aria-hidden="true">
+              <div className={styles.tvSky}>
+                <CabinMonitorSky
+                  spinRef={tvSpinRef}
+                  starRefs={tvStarRefs}
+                  pictureRef={tvSkyPicRef}
+                  fogRef={tvSkyFogRef}
+                />
+              </div>
               <div ref={tvVeilRef} className={styles.tvVeil} />
               <div ref={tvRasterRef} className={styles.tvRaster} />
               <div ref={tvBodyRef} className={styles.tvBody}>

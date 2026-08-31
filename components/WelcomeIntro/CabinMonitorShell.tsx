@@ -23,12 +23,12 @@
    SVG gives no offset-path for. Order matters -- widest first, since every one of
    them covers w/2 inward from the shared edge.
 
-   The screen is a hole, not a fill. The planet and stars are still painted into
-   layer-middle and the opening beat spends TV_LEAD showing them before .tvVeil
-   blanks them, so filling it navy now would open onto nothing until the SVG planet
-   lands. .tv sits above this SVG and covers the aperture exactly -- which is also
-   what lets the well around it be drawn as strokes centred on the aperture outline:
-   everything inside is hidden, so only the outward half of each stroke survives. */
+   The screen is a hole, not a fill. What fills it is .tv, whose bottom layer is the
+   planet-and-stars SVG in CabinMonitorSky.tsx; a navy fill here would be a second
+   opinion about the field colour behind the same aperture. .tv covers that aperture
+   exactly -- which is also what lets the well around it be drawn as strokes centred
+   on the aperture outline: everything inside is hidden, so only the outward half of
+   each stroke survives. */
 
 /* Corner radii are ~40% larger than the plate's own, because every inner stroke
    sharpens a convex corner by its half-width: the cream panel is what the eye
