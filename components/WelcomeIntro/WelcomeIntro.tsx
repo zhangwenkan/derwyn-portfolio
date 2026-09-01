@@ -201,6 +201,14 @@ const BUBBLE_IN = 0.34;
 const BUBBLE_OUT = 0.26;
 const BUBBLE_GAP = 0.2;
 
+// Scroll cue. Drawn in the plate's own line language rather than as a UI chrome
+// widget: same navy ink as the balloon, same uneven-stroke hand.
+const CUE_IN = 0.7;
+const CUE_OUT = 0.4;
+// Wheel travel inside the mouse body, in the cue SVG's own units.
+const CUE_WHEEL_TRAVEL = 7;
+const CUE_CHEVRON_DROP = 5;
+
 // Odometer on the cart's front panel. Every column reads the same 0-100 walk
 // progress divided down, which is the gearing a mechanical counter has: the tens
 // advance a tenth as often as the units and the hundreds turn once over the run.
@@ -654,6 +662,11 @@ export default function WelcomeIntro() {
   const loaderLastTimeRef = useRef(0);
   const loaderWalkRef = useRef<gsap.core.Timeline | null>(null);
   const loaderBubbleRef = useRef<gsap.core.Timeline | null>(null);
+  const cueRef = useRef<HTMLDivElement>(null);
+  const cueWheelRef = useRef<SVGRectElement>(null);
+  const cueChevronRefs = useRef<(SVGPathElement | null)[]>([]);
+  const cueTlRef = useRef<gsap.core.Timeline | null>(null);
+  const cueArmRef = useRef<(() => void) | null>(null);
   const tlRef = useRef<gsap.core.Timeline | null>(null);
   const loopRef = useRef(false);
   const [looping, setLooping] = useState(false);
@@ -708,6 +721,114 @@ export default function WelcomeIntro() {
       window.removeEventListener("resize", onResize);
       if (vfc) video.cancelVideoFrameCallback(handle);
       else cancelAnimationFrame(handle);
+    };
+  }, []);
+
+  const stopCue = useCallback(() => {
+    cueArmRef.current?.();
+    cueArmRef.current = null;
+    cueTlRef.current?.kill();
+    cueTlRef.current = null;
+    const cue = cueRef.current;
+    if (cue) gsap.set(cue, { clearProps: "all" });
+  }, []);
+
+  // Raised when the attendant lands on 100, and it is the only thing that starts
+  // the dolly -- the main timeline is built paused on purpose, so until this is
+  // armed there is nothing for a scroll to interrupt.
+  const showCue = useCallback(() => {
+    const cue = cueRef.current;
+    const wheel = cueWheelRef.current;
+    const chevrons = cueChevronRefs.current.filter(
+      (el): el is SVGPathElement => !!el,
+    );
+    if (!cue || !wheel || chevrons.length === 0) return;
+
+    cueTlRef.current?.kill();
+    const tl = gsap.timeline();
+    cueTlRef.current = tl;
+    tl.fromTo(
+      cue,
+      { xPercent: -50, opacity: 0, y: 14 },
+      { opacity: 1, y: 0, duration: CUE_IN, ease: "power2.out" },
+      0,
+    );
+
+    // The wheel and the chevrons run as one repeating gesture rather than as two
+    // loops of their own: the ink has to leave the mouse before the arrows answer
+    // it, and sibling repeats with different durations would drift out of that
+    // order within a few passes.
+    const beat = gsap.timeline({ repeat: -1, repeatDelay: 0.55 });
+    beat.fromTo(
+      wheel,
+      { y: 0 },
+      { y: CUE_WHEEL_TRAVEL, duration: 0.5, ease: "power2.inOut" },
+      0,
+    );
+    beat.to(wheel, { y: 0, duration: 0.34, ease: "power2.out" }, 0.62);
+    chevrons.forEach((chevron, i) => {
+      beat.fromTo(
+        chevron,
+        { opacity: 0, y: 0 },
+        {
+          opacity: 1,
+          y: CUE_CHEVRON_DROP,
+          duration: 0.34,
+          ease: "power2.out",
+        },
+        0.16 + i * 0.12,
+      );
+      beat.to(
+        chevron,
+        { opacity: 0, duration: 0.3, ease: "power1.in" },
+        0.56 + i * 0.12,
+      );
+    });
+    tl.add(beat, CUE_IN * 0.6);
+
+    const launch = () => {
+      cueArmRef.current?.();
+      cueArmRef.current = null;
+      // Retires the loop but leaves the entrance tween alone, so the cue fades on
+      // its own terms instead of snapping back to its pre-entrance offset.
+      beat.kill();
+      gsap.to(cue, {
+        opacity: 0,
+        y: 10,
+        duration: CUE_OUT,
+        ease: "power2.in",
+      });
+      tlRef.current?.play();
+    };
+
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY > 0) launch();
+    };
+    let touchY: number | null = null;
+    const onTouchStart = (e: TouchEvent) => {
+      touchY = e.touches[0]?.clientY ?? null;
+    };
+    const onTouchMove = (e: TouchEvent) => {
+      const y = e.touches[0]?.clientY;
+      if (touchY === null || y === undefined) return;
+      if (touchY - y > 12) launch();
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "ArrowDown" || e.key === "PageDown" || e.key === " ")
+        launch();
+    };
+    // Non-passive is unnecessary: the overlay already pins the body, so there is
+    // no default scroll to cancel and the listener stays off the compositor's
+    // critical path.
+    window.addEventListener("wheel", onWheel, { passive: true });
+    window.addEventListener("touchstart", onTouchStart, { passive: true });
+    window.addEventListener("touchmove", onTouchMove, { passive: true });
+    window.addEventListener("keydown", onKey);
+    cueArmRef.current = () => {
+      window.removeEventListener("wheel", onWheel);
+      window.removeEventListener("touchstart", onTouchStart);
+      window.removeEventListener("touchmove", onTouchMove);
+      window.removeEventListener("keydown", onKey);
     };
   }, []);
 
@@ -797,6 +918,7 @@ export default function WelcomeIntro() {
           }
           loaderFrameRef.current = LOADING_REST_FRAME;
           drawFrame(LOADING_REST_FRAME);
+          showCue();
         },
       },
       0,
@@ -930,7 +1052,7 @@ export default function WelcomeIntro() {
       at += BUBBLE_IN + hold + BUBBLE_OUT + BUBBLE_GAP;
     }
     loaderBubbleRef.current = bubbleTl;
-  }, []);
+  }, [showCue]);
 
   const stopBroadcast = useCallback(() => {
     tvTlRef.current?.kill();
@@ -1560,10 +1682,11 @@ export default function WelcomeIntro() {
     stopDog();
     stopLoader();
     stopBroadcast();
+    stopCue();
     const root = rootRef.current;
     if (root) delete root.dataset.playing;
     document.body.style.overflow = "";
-  }, [stopDog, stopLoader, stopBroadcast]);
+  }, [stopDog, stopLoader, stopBroadcast, stopCue]);
 
   const play = useCallback(() => {
     const root = rootRef.current;
@@ -1577,6 +1700,7 @@ export default function WelcomeIntro() {
 
     tlRef.current?.kill();
     tlRef.current = null;
+    stopCue();
     gsap.set([far, middle, front], { clearProps: "all" });
     gsap.set([stage, walker], { opacity: 1 });
     dogGLRef.current?.clear();
@@ -1685,7 +1809,7 @@ export default function WelcomeIntro() {
       // Fades the stage rather than the root so the controls stay reachable.
       tl.to([stage, walker], { opacity: 0, ease: "power2.inOut", duration: 0.65 }, 2.9);
     });
-  }, [stop, startDog, startLoader, startBroadcast]);
+  }, [stop, stopCue, startDog, startLoader, startBroadcast]);
 
   const skip = useCallback(() => {
     loopRef.current = false;
@@ -1695,9 +1819,13 @@ export default function WelcomeIntro() {
       stop();
       return;
     }
+    stopCue();
     tl.repeat(0);
+    // The dolly may still be waiting on the scroll cue, so skip has to release it
+    // before winding it forward -- a timeScale on a paused timeline goes nowhere.
+    tl.play();
     gsap.to(tl, { timeScale: 6, duration: 0.25, ease: "power1.in" });
-  }, [stop]);
+  }, [stop, stopCue]);
 
   const toggleLoop = useCallback(() => {
     const next = !loopRef.current;
@@ -1850,6 +1978,50 @@ export default function WelcomeIntro() {
           </div>
           {/* Filled from LOADING_LINES as each beat comes up. */}
           <p ref={bubbleRef} className={styles.bubble} />
+        </div>
+        {/* Raised by showCue once the cart lands on 100. Inline stroke widths
+            rather than a class each: the four are deliberately unequal so the
+            outline reads as pen pressure, matching the plate's own line. */}
+        <div ref={cueRef} className={styles.cue} aria-hidden="true">
+          <svg className={styles.cueGlyph} viewBox="0 0 44 78" fill="none">
+            <g stroke="#203050" strokeLinecap="round" strokeLinejoin="round">
+              <path
+                d="M9.4 15.5C9.4 7.9 15.1 2.2 22.2 2.2C29.2 2.2 34.8 7.6 34.7 15.3C34.6 22.9 34.9 31.6 34.6 36.4C34.2 43.1 28.8 48.4 22 48.4C15.2 48.4 9.8 43.2 9.5 36.3C9.3 31.5 9.4 23.1 9.4 15.5Z"
+                strokeWidth="2.4"
+              />
+              <rect
+                ref={cueWheelRef}
+                x="20.6"
+                y="11.4"
+                width="2.9"
+                height="7.4"
+                rx="1.45"
+                fill="#203050"
+                stroke="none"
+              />
+            </g>
+            {/* Two chevrons, the lower one lighter and narrower: the fall reads as
+                one gesture carrying on rather than as two equal ticks. */}
+            <g stroke="#203050" strokeLinecap="round" strokeLinejoin="round">
+              <path
+                ref={(el) => {
+                  cueChevronRefs.current[0] = el;
+                }}
+                d="M13.6 57.4L22.1 64.6L30.8 57.1"
+                strokeWidth="2.5"
+                opacity="0"
+              />
+              <path
+                ref={(el) => {
+                  cueChevronRefs.current[1] = el;
+                }}
+                d="M16.4 65.9L22.1 70.8L27.9 65.6"
+                strokeWidth="1.9"
+                opacity="0"
+              />
+            </g>
+          </svg>
+          <span className={styles.cueText}>Scroll</span>
         </div>
         <div className={styles.controls}>
           {DEV ? (

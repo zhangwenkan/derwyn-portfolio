@@ -978,6 +978,44 @@
   clip-path: polygon(26% 0%, 84% 0%, 46% 46%, 17% 70%, 25% 44%);
 }
 
+/* Scroll cue at the foot of the frame. Centred on the root rather than on .stage,
+   so it stays put when the cover-scaled plate is wider than the viewport, and left
+   out of .stage entirely so the dolly's opacity fade does not take it along.
+   Hidden by default: showCue owns opacity and y from the entrance on. */
+.cue {
+  position: absolute;
+  left: 50%;
+  bottom: clamp(1.1rem, 3.4vh, 2.4rem);
+  /* The centring shift lives in GSAP (xPercent), not here: showCue tweens y on
+     this element, and a transform declared in CSS would be overwritten by the
+     first frame of that tween and drop the cue half its width to the right. */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  pointer-events: none;
+  user-select: none;
+  opacity: 0;
+}
+
+.cueGlyph {
+  display: block;
+  width: auto;
+  height: clamp(2.6rem, 5.4vh, 3.9rem);
+  /* Same ink offset as the balloon, so the cue sits on the plate the same way the
+     attendant's speech does. */
+  filter: drop-shadow(0.06em 0.09em 0 rgba(32, 48, 80, 0.16));
+}
+
+.cueText {
+  color: #203050;
+  font-family: "Workear", "HiMelody", "Oxanium", "PingFang SC", system-ui, sans-serif;
+  font-weight: 400;
+  font-size: clamp(0.7rem, 0.95vw, 0.86rem);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
 .controls {
   position: absolute;
   right: clamp(1rem, 3vw, 2.5rem);
