@@ -95,6 +95,24 @@
 
    Ahead of .statusLights in the DOM rather than wrapping them, so the lenses paint
    over the panel face without having to inherit its box. */
+/* Rain on the cabin window. Registered to the aperture itself rather than to the
+   documented cutout figure: the hole's alpha edge measures x819 y173, 399x565 of
+   2048x1152, which is these four percentages. Inside .middle so it rides the wall's
+   push-in.
+
+   The canvas backing store is the simulation's own 399x565 and the element is
+   stretched to the box by CSS, which is what keeps the refraction offsets -- quoted
+   in water-map pixels -- meaning the same thing at every viewport. */
+.rain {
+  position: absolute;
+  left: 39.99%;
+  top: 15.017%;
+  width: 19.482%;
+  height: 49.045%;
+  display: block;
+  pointer-events: none;
+}
+
 .vent {
   position: absolute;
   left: 80.078%;

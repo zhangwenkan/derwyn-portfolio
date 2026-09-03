@@ -7,13 +7,19 @@ import CustomEase from "gsap/CustomEase";
 import { CabinMonitorShell } from "./CabinMonitorShell";
 import { CabinMonitorSky, SKY_SPIN_SPAN } from "./CabinMonitorSky";
 import { CabinVent } from "./CabinVent";
+import { createRaindrops, type RainOptions } from "./rainDrops";
+import { createWaterRenderer } from "./rainWater";
 import styles from "./WelcomeIntro.module.css";
 
 gsap.registerPlugin(CustomEase);
 
+// Named separately as well as listed: the refraction pass behind the window needs
+// this one as a decoded image to upload, not just as a warmed cache entry.
+const LAYER_FAR = "/assets/welcome/layer-far.webp";
+const LAYER_MIDDLE = "/assets/welcome/layer-middle.webp";
 const LAYERS = [
-  "/assets/welcome/layer-far.webp",
-  "/assets/welcome/layer-middle.webp",
+  LAYER_FAR,
+  LAYER_MIDDLE,
   "/assets/welcome/layer-front.webp",
 ];
 
@@ -200,6 +206,77 @@ const BUBBLE_TAIL = 0.8;
 const BUBBLE_IN = 0.34;
 const BUBBLE_OUT = 0.26;
 const BUBBLE_GAP = 0.2;
+
+// Rain on the cabin window. The aperture is a hole punched clean through
+// layer-middle.webp -- alpha is 0 across its whole interior -- so layer-far shows
+// through it directly, which is also what the refraction pass samples.
+//
+// Measured off the plate's alpha edge: x819 y173, 399x565 of 2048x1152.
+const RAIN_APERTURE = { x: 819, y: 173, w: 399, h: 565 };
+const DROP_ALPHA = "/assets/welcome/drop-alpha.png";
+const DROP_COLOR = "/assets/welcome/drop-color.png";
+
+// The simulation runs at plate scale, so a drop radius here is a radius on the
+// 2048-wide artwork and holds its apparent size at any viewport.
+const RAIN_SCALE = 1;
+
+// The original's live values, which are not the ones its Raindrops defaults declare:
+// index.js overrides some in the constructor, then updateWeather() runs
+// Object.assign(raindrops.options, weatherData.rain) over the top of that, and the
+// weather profile wins. So the effective config is the constructor's collisionRadius
+// 0.45 and dropletsCleaningRadiusMultiplier 0.28 -- neither is the 0.65/0.43 the
+// defaults declare -- with the profile's collisionRadiusIncrease 0.0002, rainLimit 6,
+// dropletsRate 50 and trailScaleRange [0.25, 0.35].
+//
+// Everything dimensionless is taken from that as-is. The radii, rates and time scale
+// are not: the original is a full-window storm and this is one cabin window, so it is
+// dialled back on three axes that are independent of each other.
+//
+// Original codrops/RainEffect defaults, kept verbatim except where the aperture forces
+// a change. The only deliberate departure is rainPower, which the original hard-codes.
+const RAIN_OPTIONS: RainOptions = {
+  minR: 10,
+  maxR: 40,
+  rainPower: 3,
+  maxDrops: 900,
+  rainChance: 0.3,
+  rainLimit: 3,
+  dropletsRate: 50,
+  dropletsSize: [2, 4],
+  dropletsCleaningRadiusMultiplier: 0.43,
+  globalTimeScale: 1,
+  trailRate: 1,
+  autoShrink: true,
+  spawnArea: [-0.1, 0.95],
+  trailScaleRange: [0.2, 0.5],
+  collisionRadius: 0.65,
+  collisionRadiusIncrease: 0.01,
+  dropFallMultiplier: 1,
+  collisionBoostMultiplier: 0.05,
+  collisionBoost: 1,
+};
+
+// Refraction strength, in water-map pixels. The original's 256/512 is quoted against
+// a full-window canvas, and the shader divides by resolution, so what it actually
+// means is an offset of roughly a fifth of the pane's width. These are that same
+// fraction re-expressed for a 399-wide pane -- the offset in uv matches the original
+// rather than the number matching it.
+//
+// The reason such a large offset works there and not here used to be the whole
+// problem: it refracts a 96x64 texture, so a drop's interior is a soft wash and the
+// offset only has to move it convincingly. rainWater.ts now builds that same soft
+// texture, which is what lets the strength come back up to the original's.
+//
+// Original defaults: alphaMultiply 20 / alphaSubtract 5 for a hard clip, brightness 1.04.
+// No shine, no shadow, no lens shading — those were added to make drops visible on flat
+// cartoon fill and are removed to match the original look.
+const RAIN_WATER_OPTIONS = {
+  minRefraction: 40,
+  maxRefraction: 80,
+  brightness: 1.04,
+  alphaMultiply: 20,
+  alphaSubtract: 5,
+};
 
 // Scroll cue. Drawn in the plate's own line language rather than as a UI chrome
 // widget: same navy ink as the balloon, same uneven-stroke hand.
@@ -662,6 +739,11 @@ export default function WelcomeIntro() {
   const loaderLastTimeRef = useRef(0);
   const loaderWalkRef = useRef<gsap.core.Timeline | null>(null);
   const loaderBubbleRef = useRef<gsap.core.Timeline | null>(null);
+  const rainRef = useRef<HTMLCanvasElement>(null);
+  const rainSimRef = useRef<ReturnType<typeof createRaindrops>>(null);
+  const rainGLRef = useRef<ReturnType<typeof createWaterRenderer>>(null);
+  const rainRafRef = useRef<number | null>(null);
+  const rainPausedRef = useRef(false);
   const cueRef = useRef<HTMLDivElement>(null);
   const cueWheelRef = useRef<SVGRectElement>(null);
   const cueChevronRefs = useRef<(SVGPathElement | null)[]>([]);
@@ -1053,6 +1135,64 @@ export default function WelcomeIntro() {
     }
     loaderBubbleRef.current = bubbleTl;
   }, [showCue]);
+
+  const stopRain = useCallback(() => {
+    if (rainRafRef.current !== null) {
+      cancelAnimationFrame(rainRafRef.current);
+      rainRafRef.current = null;
+    }
+    rainPausedRef.current = false;
+  }, []);
+
+  const startRain = useCallback(
+    (
+      drops: HTMLImageElement,
+      colour: HTMLImageElement,
+      plate: HTMLImageElement,
+      wall: HTMLImageElement,
+    ) => {
+      const canvas = rainRef.current;
+      if (!canvas) return;
+      stopRain();
+
+      // Built once and kept: the simulation's 255 pre-composited stamps are the
+      // expensive part of setting this up, and a replay only needs the drop list
+      // cleared.
+      rainSimRef.current ??= createRaindrops(
+        RAIN_APERTURE.w,
+        RAIN_APERTURE.h,
+        RAIN_SCALE,
+        { alpha: drops, color: colour },
+        RAIN_OPTIONS,
+      );
+      const sim = rainSimRef.current;
+      if (!sim) return;
+      sim.reset();
+
+      rainGLRef.current ??= createWaterRenderer(
+        canvas,
+        sim.canvas,
+        plate,
+        wall,
+        RAIN_APERTURE,
+        RAIN_WATER_OPTIONS,
+      );
+      const water = rainGLRef.current;
+      if (!water) return;
+
+      // One rAF drives both halves. The simulation has to advance before the pass
+      // that reads its canvas, so they cannot be two independent loops.
+      const tick = (now: number) => {
+        if (!rainPausedRef.current) {
+          sim.step(now);
+          water.draw();
+        }
+        rainRafRef.current = requestAnimationFrame(tick);
+      };
+      rainRafRef.current = requestAnimationFrame(tick);
+    },
+    [stopRain],
+  );
 
   const stopBroadcast = useCallback(() => {
     tvTlRef.current?.kill();
@@ -1682,11 +1822,12 @@ export default function WelcomeIntro() {
     stopDog();
     stopLoader();
     stopBroadcast();
+    stopRain();
     stopCue();
     const root = rootRef.current;
     if (root) delete root.dataset.playing;
     document.body.style.overflow = "";
-  }, [stopDog, stopLoader, stopBroadcast, stopCue]);
+  }, [stopDog, stopLoader, stopBroadcast, stopRain, stopCue]);
 
   const play = useCallback(() => {
     const root = rootRef.current;
@@ -1715,17 +1856,22 @@ export default function WelcomeIntro() {
     video.currentTime = 0;
 
     void Promise.all([
-      loadImages([LOADING_SHEET]),
+      // The rain needs its two stamps, the plate, and the wall as decoded images: the
+      // simulation composites the stamps on the CPU and the refraction pass uploads
+      // the plate and wall as textures, so all four have to be loaded objects before
+      // either half can be built.
+      loadImages([LOADING_SHEET, DROP_ALPHA, DROP_COLOR, LAYER_FAR, LAYER_MIDDLE]),
       preload([...LAYERS, TV_CAPTAIN]),
       // A refused autoplay must not stall the intro: the scene is the point and
       // the dog is a detail, so a rejection resolves like a success.
       video.play().catch(() => {}),
-    ]).then(([[loaderSheet]]) => {
+    ]).then(([[loaderSheet, dropAlpha, dropColour, plate, wall]]) => {
       if (rootRef.current?.dataset.playing !== "true") return;
       loaderSheetRef.current = loaderSheet;
       startDog();
       startLoader();
       startBroadcast();
+      startRain(dropAlpha, dropColour, plate, wall);
 
       const tl = gsap.timeline({
         repeat: loopRef.current ? -1 : 0,
@@ -1757,6 +1903,12 @@ export default function WelcomeIntro() {
           tvSpinTweenRef.current?.pause();
           tvStarTweensRef.current.forEach((t) => t.pause());
           tvTlRef.current?.pause();
+          // Pause rain and fade it out over the first half of the dolly.
+          rainPausedRef.current = true;
+          const canvas = rainRef.current;
+          if (canvas) {
+            gsap.to(canvas, { opacity: 0, duration: DURATION * 0.5, ease: "power1.out" });
+          }
         },
         undefined,
         0,
@@ -1809,7 +1961,7 @@ export default function WelcomeIntro() {
       // Fades the stage rather than the root so the controls stay reachable.
       tl.to([stage, walker], { opacity: 0, ease: "power2.inOut", duration: 0.65 }, 2.9);
     });
-  }, [stop, stopCue, startDog, startLoader, startBroadcast]);
+  }, [stop, stopCue, startDog, startLoader, startBroadcast, startRain]);
 
   const skip = useCallback(() => {
     loopRef.current = false;
@@ -1848,10 +2000,36 @@ export default function WelcomeIntro() {
 
   return (
     <>
+      {/* Debug: skip to 100% */}
+      <button
+        onClick={() => {
+          showCue();
+        }}
+        style={{
+          position: "fixed",
+          top: "10px",
+          right: "10px",
+          zIndex: 9999,
+          padding: "8px 16px",
+          background: "#000",
+          color: "#fff",
+          border: "1px solid #fff",
+          cursor: "pointer",
+          fontSize: "14px",
+        }}
+      >
+        Skip to 100%
+      </button>
       <div ref={rootRef} className={styles.root}>
         <div ref={stageRef} className={styles.stage} aria-hidden="true">
           <div ref={farRef} className={`${styles.layer} ${styles.far}`} />
           <div ref={middleRef} className={`${styles.layer} ${styles.middle}`}>
+            {/* First child of .middle, so the glass paints under everything else on
+                the wall -- the aperture is behind the cabin fittings, not over them. */}
+            {/* No width/height attributes: the water renderer sizes the backing
+                store to the simulation's own resolution, and a stale attribute
+                would just contradict it. */}
+            <canvas ref={rainRef} className={styles.rain} aria-hidden="true" />
             <div className={styles.tvShell} aria-hidden="true">
               <CabinMonitorShell />
             </div>
