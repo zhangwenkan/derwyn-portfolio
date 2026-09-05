@@ -42,3 +42,6 @@ next-env.d.ts
 # local tools
 .claude
 /CLAUDE.md
+
+# downloaded reference source and extraction artifacts
+/.tmp/

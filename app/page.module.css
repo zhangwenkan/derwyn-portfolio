@@ -1,0 +1,21 @@
+.page {
+  min-height: 200svh;
+  background: #fff;
+}
+
+.intro {
+  position: relative;
+  display: flex;
+  min-height: 100svh;
+  align-items: flex-start;
+  padding: clamp(4rem, 10vw, 8rem) clamp(2rem, 6vw, 6rem);
+  box-sizing: border-box;
+}
+
+.intro h1 {
+  margin: 0;
+  color: #171717;
+  font-size: clamp(2.5rem, 6vw, 5rem);
+  font-weight: 400;
+  letter-spacing: 0;
+}

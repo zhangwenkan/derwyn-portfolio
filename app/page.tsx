@@ -1,15 +1,13 @@
+import Footprint from "@/components/Footprint/Footprint";
+import styles from "./page.module.css";
+
 export default function Home() {
   return (
-    <main
-      style={{
-        minHeight: "200vh",
-        padding: "4rem 2rem",
-        boxSizing: "border-box",
-      }}
-    >
-      <h1 style={{ fontSize: "clamp(2.5rem, 6vw, 5rem)", margin: 0 }}>
-        Derwyn Portfolio
-      </h1>
+    <main className={styles.page}>
+      <section className={styles.intro} aria-label="Portfolio introduction">
+        <h1>Derwyn Portfolio</h1>
+      </section>
+      <Footprint />
     </main>
   );
 }
