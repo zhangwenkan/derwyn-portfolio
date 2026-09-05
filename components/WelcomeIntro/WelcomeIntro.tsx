@@ -9,16 +9,19 @@ import { CabinMonitorSky, SKY_SPIN_SPAN } from "./CabinMonitorSky";
 import { CabinVent } from "./CabinVent";
 import { createRaindrops, type RainOptions } from "./rainDrops";
 import { createWaterRenderer } from "./rainWater";
+import {
+  CloudLayer,
+  CLOUD_IDLE_SPEED,
+  CLOUD_FLIGHT_SPEED,
+  type CloudLayerControls,
+} from "./CloudLayer";
 import styles from "./WelcomeIntro.module.css";
 
 gsap.registerPlugin(CustomEase);
 
-// Named separately as well as listed: the refraction pass behind the window needs
-// this one as a decoded image to upload, not just as a warmed cache entry.
-const LAYER_FAR = "/assets/welcome/layer-far.webp";
 const LAYER_MIDDLE = "/assets/welcome/layer-middle.webp";
 const LAYERS = [
-  LAYER_FAR,
+  "/assets/cloud.png",
   LAYER_MIDDLE,
   "/assets/welcome/layer-front.webp",
 ];
@@ -687,7 +690,7 @@ const loadImages = (sources: string[]) =>
   );
 
 const SEEN_KEY = "derwyn:welcome-seen";
-const DURATION = 3.2;
+const DURATION = 2;
 const DEV = process.env.NODE_ENV !== "production";
 
 const preload = (sources: string[]) =>
@@ -752,6 +755,16 @@ export default function WelcomeIntro() {
   const tlRef = useRef<gsap.core.Timeline | null>(null);
   const loopRef = useRef(false);
   const [looping, setLooping] = useState(false);
+  const cloudLayerRef = useRef<CloudLayerControls | null>(null);
+
+  const onCloudReady = useCallback((controls: CloudLayerControls | null) => {
+    cloudLayerRef.current = controls;
+    if (rootRef.current?.dataset.playing === "true") controls?.play();
+  }, []);
+
+  const onCloudFrame = useCallback((canvas: HTMLCanvasElement) => {
+    if (!rainPausedRef.current) rainGLRef.current?.updateBackground(canvas);
+  }, []);
 
   const stopDog = useCallback(() => {
     dogCancelRef.current?.();
@@ -1148,12 +1161,14 @@ export default function WelcomeIntro() {
     (
       drops: HTMLImageElement,
       colour: HTMLImageElement,
-      plate: HTMLImageElement,
       wall: HTMLImageElement,
     ) => {
       const canvas = rainRef.current;
-      if (!canvas) return;
+      const background = cloudLayerRef.current?.canvas;
+      if (!canvas || !background) return;
       stopRain();
+      gsap.killTweensOf(canvas);
+      gsap.set(canvas, { opacity: 1 });
 
       // Built once and kept: the simulation's 255 pre-composited stamps are the
       // expensive part of setting this up, and a replay only needs the drop list
@@ -1172,7 +1187,7 @@ export default function WelcomeIntro() {
       rainGLRef.current ??= createWaterRenderer(
         canvas,
         sim.canvas,
-        plate,
+        background,
         wall,
         RAIN_APERTURE,
         RAIN_WATER_OPTIONS,
@@ -1824,6 +1839,7 @@ export default function WelcomeIntro() {
     stopBroadcast();
     stopRain();
     stopCue();
+    cloudLayerRef.current?.pause();
     const root = rootRef.current;
     if (root) delete root.dataset.playing;
     document.body.style.overflow = "";
@@ -1846,6 +1862,9 @@ export default function WelcomeIntro() {
     gsap.set([stage, walker], { opacity: 1 });
     dogGLRef.current?.clear();
     root.dataset.playing = "true";
+    cloudLayerRef.current?.setProgress(0);
+    cloudLayerRef.current?.setSpeed(CLOUD_IDLE_SPEED);
+    cloudLayerRef.current?.play();
     document.body.style.overflow = "hidden";
     window.scrollTo(0, 0);
 
@@ -1856,22 +1875,18 @@ export default function WelcomeIntro() {
     video.currentTime = 0;
 
     void Promise.all([
-      // The rain needs its two stamps, the plate, and the wall as decoded images: the
-      // simulation composites the stamps on the CPU and the refraction pass uploads
-      // the plate and wall as textures, so all four have to be loaded objects before
-      // either half can be built.
-      loadImages([LOADING_SHEET, DROP_ALPHA, DROP_COLOR, LAYER_FAR, LAYER_MIDDLE]),
+      loadImages([LOADING_SHEET, DROP_ALPHA, DROP_COLOR, LAYER_MIDDLE]),
       preload([...LAYERS, TV_CAPTAIN]),
       // A refused autoplay must not stall the intro: the scene is the point and
       // the dog is a detail, so a rejection resolves like a success.
       video.play().catch(() => {}),
-    ]).then(([[loaderSheet, dropAlpha, dropColour, plate, wall]]) => {
+    ]).then(([[loaderSheet, dropAlpha, dropColour, wall]]) => {
       if (rootRef.current?.dataset.playing !== "true") return;
       loaderSheetRef.current = loaderSheet;
       startDog();
       startLoader();
       startBroadcast();
-      startRain(dropAlpha, dropColour, plate, wall);
+      startRain(dropAlpha, dropColour, wall);
 
       const tl = gsap.timeline({
         repeat: loopRef.current ? -1 : 0,
@@ -1886,7 +1901,21 @@ export default function WelcomeIntro() {
       // Explicit zero-position state so each loop pass starts from scratch.
       tl.set([stage, walker], { opacity: 1 }, 0);
       tl.set([far, middle, front], { opacity: 1, display: "block" }, 0);
+      tl.set(far, { scale: 1, filter: "none" }, 0);
       tl.set([middle, front], { scale: 1, filter: "blur(0px)" }, 0);
+      tl.to(walker, { opacity: 0, duration: 0.45, ease: "power1.out" }, 0);
+
+      const flight = { speed: CLOUD_IDLE_SPEED };
+      tl.to(
+        flight,
+        {
+          speed: CLOUD_FLIGHT_SPEED,
+          duration: DURATION + 0.2,
+          ease: "power2.inOut",
+          onUpdate: () => cloudLayerRef.current?.setSpeed(flight.speed),
+        },
+        0,
+      );
 
       // The monitor stops the moment the dolly starts. .middle runs to scale 11 under
       // a 5px blur, and a subtree still repainting inside that forces the whole
@@ -1900,6 +1929,10 @@ export default function WelcomeIntro() {
       // expensive thing on the plate to leave running under the blur.
       tl.call(
         () => {
+          stopLoader();
+          stopCue();
+          cloudLayerRef.current?.setSpeed(CLOUD_IDLE_SPEED);
+          cloudLayerRef.current?.play();
           tvSpinTweenRef.current?.pause();
           tvStarTweensRef.current.forEach((t) => t.pause());
           tvTlRef.current?.pause();
@@ -1914,23 +1947,11 @@ export default function WelcomeIntro() {
         0,
       );
 
-      // Three planes share the window centre as their origin; the speed spread
-      // between them is what sells the dolly through the glass. The far plane
-      // is full frame, so it starts slightly overscanned to keep its own blurred
-      // edge outside the viewport.
-      tl.to(far, { scale: 1.75, ease: "power1.in", duration: DURATION }, 0);
-      tl.fromTo(
-        far,
-        { scale: 1.06, filter: "blur(7px)" },
-        { filter: "blur(0px)", ease: "sine.out", duration: 1.9 },
-        0,
-      );
-
       // The wall only has to grow until the window opening clears the viewport,
       // which happens around scale 5.1; the rest of the travel is overshoot so
       // the frame edges are long gone before the plane fades.
       tl.to(middle, { scale: 11, ease: "power2.in", duration: DURATION }, 0);
-      tl.to(middle, { filter: "blur(5px)", ease: "power1.in", duration: 0.9 }, 2.0);
+      tl.to(middle, { filter: "blur(5px)", ease: "power1.in", duration: 0.9 }, 1.1);
       tl.to(
         middle,
         {
@@ -1939,14 +1960,14 @@ export default function WelcomeIntro() {
           duration: 0.7,
           onComplete: () => gsap.set(middle, { display: "none" }),
         },
-        2.4,
+        1.5,
       );
 
       // The window sits dead centre, so the camera flies straight through the
       // boy's seat. Defocusing the plane as it grows makes that read as a
       // foreground blur pass instead of a translucent cutout.
-      tl.to(front, { scale: 13, ease: "power2.in", duration: DURATION * 0.9 }, 0);
-      tl.to(front, { filter: "blur(14px)", ease: "power2.in", duration: 1.8 }, 0);
+      tl.to(front, { scale: 13, ease: "power2.in", duration: 1.8 }, 0);
+      tl.to(front, { filter: "blur(14px)", ease: "power2.in", duration: 1.6 }, 0);
       tl.to(
         front,
         {
@@ -1955,13 +1976,12 @@ export default function WelcomeIntro() {
           duration: 0.9,
           onComplete: () => gsap.set(front, { display: "none" }),
         },
-        1.2,
+        0.9,
       );
 
-      // Fades the stage rather than the root so the controls stay reachable.
-      tl.to([stage, walker], { opacity: 0, ease: "power2.inOut", duration: 0.65 }, 2.9);
+      tl.to([stage, walker], { opacity: 0, ease: "power2.inOut", duration: 0.55 }, DURATION + 2.2);
     });
-  }, [stop, stopCue, startDog, startLoader, startBroadcast, startRain]);
+  }, [stop, stopCue, stopLoader, startDog, startLoader, startBroadcast, startRain]);
 
   const skip = useCallback(() => {
     loopRef.current = false;
@@ -2000,29 +2020,11 @@ export default function WelcomeIntro() {
 
   return (
     <>
-      {/* Debug: skip to 100% */}
-      <button
-        onClick={() => {
-          showCue();
-        }}
-        style={{
-          position: "fixed",
-          top: "10px",
-          right: "10px",
-          zIndex: 9999,
-          padding: "8px 16px",
-          background: "#000",
-          color: "#fff",
-          border: "1px solid #fff",
-          cursor: "pointer",
-          fontSize: "14px",
-        }}
-      >
-        Skip to 100%
-      </button>
       <div ref={rootRef} className={styles.root}>
         <div ref={stageRef} className={styles.stage} aria-hidden="true">
-          <div ref={farRef} className={`${styles.layer} ${styles.far}`} />
+          <div ref={farRef} className={`${styles.layer} ${styles.far}`}>
+            <CloudLayer onReady={onCloudReady} onFrame={onCloudFrame} />
+          </div>
           <div ref={middleRef} className={`${styles.layer} ${styles.middle}`}>
             {/* First child of .middle, so the glass paints under everything else on
                 the wall -- the aperture is behind the cabin fittings, not over them. */}
@@ -2110,10 +2112,9 @@ export default function WelcomeIntro() {
               </span>
             </div>
           </div>
-          <div ref={frontRef} className={`${styles.layer} ${styles.front}`} />
-          {/* No width/height here: the compositor sizes the backing store from
-              the laid-out box, and a stale attribute would just contradict it. */}
-          <canvas ref={dogRef} className={styles.dog} aria-hidden="true" />
+          <div ref={frontRef} className={`${styles.layer} ${styles.front}`}>
+            <canvas ref={dogRef} className={styles.dog} aria-hidden="true" />
+          </div>
         </div>
         {/* Texture source for .dog, never painted itself. preload="none" keeps
             the fetch off every page load; play() is what pulls it down. */}

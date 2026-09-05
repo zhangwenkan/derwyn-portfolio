@@ -22,9 +22,6 @@
 
    Departures from the original, all forced by where this runs:
 
-   - The original cover-fits its background in the shader from an aspect ratio. Here
-     the backdrop is the cabin's own layer-far.webp and only the aperture's crop of
-     it shows through, so the crop is baked into the textures instead.
    - No parallax uniforms. They exist to slide the background against pointer
      movement; this pane sits in a plate GSAP already pushes in, and a second offset
      would fight it.
@@ -100,7 +97,7 @@ const SOFT_WIDTH = 96;
 export const createWaterRenderer = (
   canvas: HTMLCanvasElement,
   waterMap: HTMLCanvasElement,
-  background: HTMLImageElement,
+  background: HTMLImageElement | HTMLCanvasElement,
   // layer-middle, sampled for its alpha so the rounded corners of the hole clip the
   // drops. Passed as the plate rather than a traced path: the outline is hand-drawn
   // and no fitted shape matches it.
@@ -129,32 +126,53 @@ export const createWaterRenderer = (
     return c;
   };
 
-  // The refracted view: the aperture's crop of the plate, knocked down to the
-  // original's texel density. Halved in steps -- a single big downscale in canvas
-  // point-samples and would put aliasing inside every drop.
   const softH = Math.max(1, Math.round((SOFT_WIDTH * crop.h) / crop.w));
-  let stage = scratch(crop.w, crop.h, (c) =>
-    c.drawImage(background, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h),
-  );
+  let stage = scratch(crop.w, crop.h, () => {});
   if (!stage) return null;
+  const levels = [stage];
   while (stage.width > SOFT_WIDTH * 2) {
     const half = Math.max(SOFT_WIDTH, stage.width >> 1);
-    const h = Math.max(softH, stage.height >> 1);
-    const src = stage;
-    const next = scratch(half, h, (c) => c.drawImage(src, 0, 0, half, h));
+    const height = Math.max(softH, stage.height >> 1);
+    const next = scratch(half, height, () => {});
     if (!next) return null;
     stage = next;
+    levels.push(stage);
   }
-  const src = stage;
-  const soft = scratch(SOFT_WIDTH, softH, (c) =>
-    c.drawImage(src, 0, 0, SOFT_WIDTH, softH),
-  );
+  const soft = scratch(SOFT_WIDTH, softH, () => {});
 
   // The wall mask, at the aperture's own resolution so the corner cut stays crisp.
   const mask = scratch(crop.w, crop.h, (c) =>
     c.drawImage(wall, crop.x, crop.y, crop.w, crop.h, 0, 0, crop.w, crop.h),
   );
   if (!soft || !mask) return null;
+  levels.push(soft);
+  const contexts = levels.map((level) => level.getContext("2d")!);
+
+  const updateSource = (source: HTMLImageElement | HTMLCanvasElement) => {
+    const width = source instanceof HTMLImageElement ? source.naturalWidth : source.width;
+    const height = source instanceof HTMLImageElement ? source.naturalHeight : source.height;
+    if (!width || !height || !wall.naturalWidth || !wall.naturalHeight) return;
+    const scaleX = width / wall.naturalWidth;
+    const scaleY = height / wall.naturalHeight;
+    contexts[0].clearRect(0, 0, crop.w, crop.h);
+    contexts[0].drawImage(
+      source,
+      crop.x * scaleX,
+      crop.y * scaleY,
+      crop.w * scaleX,
+      crop.h * scaleY,
+      0,
+      0,
+      crop.w,
+      crop.h,
+    );
+    for (let index = 1; index < levels.length; index++) {
+      const target = levels[index];
+      contexts[index].clearRect(0, 0, target.width, target.height);
+      contexts[index].drawImage(levels[index - 1], 0, 0, target.width, target.height);
+    }
+  };
+  updateSource(background);
 
   const compile = (type: number, source: string) => {
     const shader = gl.createShader(type)!;
@@ -192,7 +210,6 @@ export const createWaterRenderer = (
     }
   };
 
-  // Unit 0 is the water map, reuploaded every frame; 1 and 2 never change.
   bind(0, null);
   bind(1, soft);
   bind(2, mask);
@@ -230,6 +247,11 @@ export const createWaterRenderer = (
 
   return {
     resize,
+    updateBackground: (source: HTMLImageElement | HTMLCanvasElement) => {
+      updateSource(source);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, gl.RGBA, gl.UNSIGNED_BYTE, soft);
+    },
     draw: () => {
       gl.activeTexture(gl.TEXTURE0);
       gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, waterMap);

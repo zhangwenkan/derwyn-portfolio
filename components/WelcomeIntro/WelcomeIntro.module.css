@@ -78,10 +78,9 @@
   will-change: transform, opacity, filter;
 }
 
-/* Full frame behind the wall, so the punched-out window shows it directly and
-   the aperture growing past the frame edges is what fills the screen. */
 .far {
-  background-image: url("/assets/welcome/layer-far.webp");
+  background-color: #8ebedb;
+  will-change: opacity;
 }
 
 .middle {
